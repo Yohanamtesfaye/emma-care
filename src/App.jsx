@@ -34,7 +34,6 @@ const mockVitalsData = {
   temperature: 36.8,
   bpSystolic: 115,
   bpDiastolic: 75,
-  gps: "12.9716,77.5946",
   timestamp: new Date().toISOString(),
 }
 
@@ -48,6 +47,40 @@ const mockAlerts = [
   { message: "Heart Rate: 110 BPM (Elevated)", timestamp: "2024-01-15T09:30:00Z", severity: "warning" },
   { message: "Blood Pressure: 140/90 mmHg (High)", timestamp: "2024-01-15T08:15:00Z", severity: "critical" },
 ]
+
+// Mock API request function
+async function mockApiRequest(endpoint, method = 'GET', data = null) {
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 500))
+
+  switch (endpoint) {
+    case '/api/auth/login':
+      if (data?.email === 'doctor@example.com' && data?.password === 'password123') {
+        return { token: 'mock-token', role: 'doctor' }
+      }
+      if (data?.email === 'patient@example.com' && data?.password === 'password123') {
+        return { token: 'mock-token', role: 'patient' }
+      }
+      throw new Error('Invalid credentials')
+    case '/api/health':
+      try {
+        const response = await fetch('http://localhost:3000/api/health')
+        if (!response.ok) {
+          throw new Error('Failed to fetch vital signs')
+        }
+        return await response.json()
+      } catch (error) {
+        console.error('Error fetching vital signs:', error)
+        return {
+          temperature: 36.5 + Math.random() * 0.5,
+          heartRate: 70 + Math.random() * 10,
+          spo2: 95 + Math.random() * 3
+        }
+      }
+    default:
+      throw new Error('Not found')
+  }
+}
 
 // Login Component
 const Login = ({ onLogin }) => {
@@ -391,45 +424,46 @@ const VitalCard = ({ icon: Icon, title, value, unit, status, color }) => {
 
 // Patient Dashboard Component
 const PatientDashboard = ({ patientId, onLogout }) => {
-  const [vitals, setVitals] = useState(mockVitalsData)
+  const [vitals, setVitals] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setVitals((prev) => ({
-        ...prev,
-        heartRate: 70 + Math.random() * 20,
-        spo2: 95 + Math.random() * 5,
-        temperature: 36.5 + Math.random() * 1,
-        bpSystolic: 110 + Math.random() * 20,
-        bpDiastolic: 70 + Math.random() * 15,
-        timestamp: new Date().toISOString(),
-      }))
-    }, 5000)
+    const fetchVitals = async () => {
+      try {
+        const data = await mockApiRequest('/api/health')
+        setVitals(data)
+        setError(null)
+      } catch (err) {
+        setError('Failed to fetch vital signs')
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchVitals()
+    const interval = setInterval(fetchVitals, 5000) // Update every 5 seconds
+
     return () => clearInterval(interval)
   }, [])
 
-  const getVitalStatus = (vital, value) => {
-    switch (vital) {
-      case "heartRate":
-        if (value >= 60 && value <= 100) return "normal"
-        if (value > 100 && value <= 120) return "warning"
-        return "critical"
-      case "spo2":
-        if (value >= 94) return "normal"
-        if (value >= 90) return "warning"
-        return "critical"
-      case "temperature":
-        if (value >= 36.1 && value <= 37.2) return "normal"
-        if (value > 37.2 && value <= 38) return "warning"
-        return "critical"
-      case "bp":
-        if (value <= 120) return "normal"
-        if (value <= 140) return "warning"
-        return "critical"
+  const getVitalStatus = (type, value) => {
+    if (value === null) return 'bg-gray-100'
+    switch (type) {
+      case 'temperature':
+        return value > 37.5 ? 'bg-red-100' : value > 37 ? 'bg-yellow-100' : 'bg-green-100'
+      case 'heartRate':
+        return value > 100 ? 'bg-red-100' : value > 90 ? 'bg-yellow-100' : 'bg-green-100'
+      case 'spo2':
+        return value < 95 ? 'bg-red-100' : value < 97 ? 'bg-yellow-100' : 'bg-green-100'
       default:
-        return "normal"
+        return 'bg-gray-100'
     }
   }
+
+  if (loading) return <div className="p-4">Loading...</div>
+  if (error) return <div className="p-4 text-red-500">{error}</div>
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
@@ -483,38 +517,30 @@ const PatientDashboard = ({ patientId, onLogout }) => {
         </div>
 
         {/* Compact Vital Signs Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <VitalCard
             icon={Heart}
             title="Heart Rate"
-            value={Math.round(vitals.heartRate)}
+            value={Math.round(vitals?.heartRate)}
             unit="BPM"
-            status={getVitalStatus("heartRate", vitals.heartRate)}
+            status={getVitalStatus('heartRate', vitals?.heartRate)}
             color="bg-gradient-to-r from-red-500 to-pink-500"
           />
           <VitalCard
             icon={Activity}
             title="Oxygen"
-            value={Math.round(vitals.spo2)}
+            value={Math.round(vitals?.spo2)}
             unit="%"
-            status={getVitalStatus("spo2", vitals.spo2)}
+            status={getVitalStatus('spo2', vitals?.spo2)}
             color="bg-gradient-to-r from-blue-500 to-cyan-500"
           />
           <VitalCard
             icon={Thermometer}
             title="Temperature"
-            value={vitals.temperature.toFixed(1)}
+            value={vitals?.temperature?.toFixed(1)}
             unit="°C"
-            status={getVitalStatus("temperature", vitals.temperature)}
+            status={getVitalStatus('temperature', vitals?.temperature)}
             color="bg-gradient-to-r from-orange-500 to-red-500"
-          />
-          <VitalCard
-            icon={Gauge}
-            title="Blood Pressure"
-            value={`${Math.round(vitals.bpSystolic)}/${Math.round(vitals.bpDiastolic)}`}
-            unit="mmHg"
-            status={getVitalStatus("bp", vitals.bpSystolic)}
-            color="bg-gradient-to-r from-purple-500 to-indigo-500"
           />
         </div>
 
@@ -530,8 +556,7 @@ const PatientDashboard = ({ patientId, onLogout }) => {
             </div>
             <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg h-20 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-xs text-gray-600">Lat: {vitals.gps.split(",")[0]}</p>
-                <p className="text-xs text-gray-600">Lng: {vitals.gps.split(",")[1]}</p>
+                <p className="text-xs text-gray-600">Location tracking not available</p>
               </div>
             </div>
           </div>
