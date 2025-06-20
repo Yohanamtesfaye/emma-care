@@ -1,10 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
   Heart,
   Activity,
   Thermometer,
-  Gauge,
-  MapPin,
   Bell,
   User,
   Baby,
@@ -25,69 +23,19 @@ import {
   ArrowLeft,
   Upload,
   Camera,
-} from "lucide-react"
+} from "lucide-react";
 
-// Mock data for demonstration
-const mockVitalsData = {
-  heartRate: 78,
-  spo2: 97,
-  temperature: 36.8,
-  bpSystolic: 115,
-  bpDiastolic: 75,
-  timestamp: new Date().toISOString(),
-}
-
-const mockHistoricalData = [
-  { heartRate: 75, spo2: 98, temperature: 36.5, bpSystolic: 110, bpDiastolic: 70, timestamp: "2024-01-15T10:00:00Z" },
-  { heartRate: 78, spo2: 97, temperature: 36.8, bpSystolic: 115, bpDiastolic: 75, timestamp: "2024-01-15T10:05:00Z" },
-  { heartRate: 82, spo2: 96, temperature: 37.0, bpSystolic: 118, bpDiastolic: 78, timestamp: "2024-01-15T10:10:00Z" },
-]
-
-const mockAlerts = [
-  { message: "Heart Rate: 110 BPM (Elevated)", timestamp: "2024-01-15T09:30:00Z", severity: "warning" },
-  { message: "Blood Pressure: 140/90 mmHg (High)", timestamp: "2024-01-15T08:15:00Z", severity: "critical" },
-]
-
-// Mock API request function
-async function mockApiRequest(endpoint, method = 'GET', data = null) {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500))
-
-  switch (endpoint) {
-    case '/api/auth/login':
-      if (data?.email === 'doctor@example.com' && data?.password === 'password123') {
-        return { token: 'mock-token', role: 'doctor' }
-      }
-      if (data?.email === 'patient@example.com' && data?.password === 'password123') {
-        return { token: 'mock-token', role: 'patient' }
-      }
-      throw new Error('Invalid credentials')
-    case '/api/health':
-      try {
-        const response = await fetch('http://localhost:3000/api/health')
-        if (!response.ok) {
-          throw new Error('Failed to fetch vital signs')
-        }
-        return await response.json()
-      } catch (error) {
-        console.error('Error fetching vital signs:', error)
-        return {
-          temperature: 36.5 + Math.random() * 0.5,
-          heartRate: 70 + Math.random() * 10,
-          spo2: 95 + Math.random() * 3
-        }
-      }
-    default:
-      throw new Error('Not found')
-  }
-}
+// Replace with your deployed server URL
+const API_BASE_URL = "http://localhost:3000";
+const WS_URL = "ws://localhost:8080";
 
 // Login Component
 const Login = ({ onLogin }) => {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [role, setRole] = useState("patient")
-  const [showRegister, setShowRegister] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("patient");
+  const [showRegister, setShowRegister] = useState(false);
+  const [error, setError] = useState(null);
 
   // Doctor registration form state
   const [doctorForm, setDoctorForm] = useState({
@@ -101,45 +49,50 @@ const Login = ({ onLogin }) => {
     hospital: "",
     experience: "",
     bio: "",
-  })
+  });
 
-  const [formErrors, setFormErrors] = useState({})
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onLogin(role, role === "patient" ? "patient123" : "doctor456")
-  }
+  const [formErrors, setFormErrors] = useState({});
 
   const validateDoctorForm = () => {
-    const errors = {}
+    const errors = {};
+    if (!doctorForm.fullName) errors.fullName = "Name is required";
+    if (!doctorForm.email) errors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(doctorForm.email)) errors.email = "Email is invalid";
+    if (!doctorForm.password) errors.password = "Password is required";
+    else if (doctorForm.password.length < 6) errors.password = "Password must be at least 6 characters";
+    if (doctorForm.password !== doctorForm.confirmPassword) errors.confirmPassword = "Passwords don't match";
+    if (!doctorForm.phone) errors.phone = "Phone number is required";
+    if (!doctorForm.licenseNumber) errors.licenseNumber = "License number is required";
+    return errors;
+  };
 
-    if (!doctorForm.fullName) errors.fullName = "Name is required"
-    if (!doctorForm.email) errors.email = "Email is required"
-    else if (!/\S+@\S+\.\S+/.test(doctorForm.email)) errors.email = "Email is invalid"
-
-    if (!doctorForm.password) errors.password = "Password is required"
-    else if (doctorForm.password.length < 6) errors.password = "Password must be at least 6 characters"
-
-    if (doctorForm.password !== doctorForm.confirmPassword) errors.confirmPassword = "Passwords don't match"
-    if (!doctorForm.phone) errors.phone = "Phone number is required"
-    if (!doctorForm.licenseNumber) errors.licenseNumber = "License number is required"
-
-    return errors
-  }
-
-  const handleDoctorRegister = (e) => {
-    e.preventDefault()
-    const errors = validateDoctorForm()
-
+  const handleDoctorRegister = async () => {
+    const errors = validateDoctorForm();
     if (Object.keys(errors).length === 0) {
-      // In a real app, you would send this data to your backend
-      console.log("Doctor registration data:", doctorForm)
-      // For demo purposes, log in as the newly registered doctor
-      onLogin("doctor", "doctor456")
+      try {
+        // Simulate API call to register doctor (replace with real backend endpoint)
+        console.log("Doctor registration data:", doctorForm);
+        onLogin("doctor", `doctor_${doctorForm.email}`);
+      } catch (err) {
+        setError("Registration failed. Please try again.");
+      }
     } else {
-      setFormErrors(errors)
+      setFormErrors(errors);
     }
-  }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      // Simulate login (replace with real backend authentication)
+      if (email && password) {
+        onLogin(role, role === "patient" ? `patient_${email}` : `doctor_${email}`);
+      } else {
+        throw new Error("Invalid credentials");
+      }
+    } catch (err) {
+      setError("Login failed. Please check your credentials.");
+    }
+  };
 
   if (showRegister) {
     return (
@@ -152,7 +105,7 @@ const Login = ({ onLogin }) => {
             <h1 className="text-xl font-bold text-gray-800">Doctor Registration</h1>
           </div>
 
-          <form onSubmit={handleDoctorRegister} className="space-y-4">
+          <div className="space-y-4">
             <div className="flex justify-center mb-6">
               <div className="relative">
                 <div className="w-24 h-24 rounded-full bg-purple-100 flex items-center justify-center border-2 border-purple-200">
@@ -217,9 +170,7 @@ const Login = ({ onLogin }) => {
                   onChange={(e) => setDoctorForm({ ...doctorForm, confirmPassword: e.target.value })}
                   className={`w-full px-3 py-2 border rounded-lg text-sm ${formErrors.confirmPassword ? "border-red-500" : "border-gray-300"}`}
                 />
-                {formErrors.confirmPassword && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.confirmPassword}</p>
-                )}
+                {formErrors.confirmPassword && <p className="text-red-500 text-xs mt-1">{formErrors.confirmPassword}</p>}
               </div>
             </div>
 
@@ -279,8 +230,8 @@ const Login = ({ onLogin }) => {
             </div>
 
             <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-2.5 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-indigo-700 transition-all text-sm"
+              onClick={handleDoctorRegister}
+              className="w-full bg-gradient-to	r from-purple-500 to-indigo-600 text-white py-2.5 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-indigo-700 transition-all text-sm"
             >
               Register as Doctor
             </button>
@@ -288,10 +239,10 @@ const Login = ({ onLogin }) => {
             <p className="text-xs text-gray-500 text-center">
               By registering, you agree to our Terms of Service and Privacy Policy
             </p>
-          </form>
+          </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -305,7 +256,9 @@ const Login = ({ onLogin }) => {
           <p className="text-sm text-gray-600">Monitor • Care • Protect</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
+
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button
               type="button"
@@ -352,16 +305,15 @@ const Login = ({ onLogin }) => {
           />
 
           <button
-            type="submit"
+            onClick={handleSubmit}
             className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-2.5 px-4 rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition-all transform hover:scale-105 text-sm"
           >
             Sign In
           </button>
-        </form>
+        </div>
 
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-500">Demo: any email/password works</p>
-
           {role === "doctor" && (
             <button
               onClick={() => setShowRegister(true)}
@@ -374,36 +326,36 @@ const Login = ({ onLogin }) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 // Vital Signs Card Component
 const VitalCard = ({ icon: Icon, title, value, unit, status, color }) => {
   const getStatusColor = () => {
     switch (status) {
       case "normal":
-        return "border-green-200 bg-green-50"
+        return "border-green-200 bg-green-50";
       case "warning":
-        return "border-yellow-200 bg-yellow-50"
+        return "border-yellow-200 bg-yellow-50";
       case "critical":
-        return "border-red-200 bg-red-50"
+        return "border-red-200 bg-red-50";
       default:
-        return "border-gray-200 bg-white"
+        return "border-gray-200 bg-white";
     }
-  }
+  };
 
   const getStatusIcon = () => {
     switch (status) {
       case "normal":
-        return <CheckCircle className="w-3 h-3 text-green-600" />
+        return <CheckCircle className="w-3 h-3 text-green-600" />;
       case "warning":
-        return <AlertTriangle className="w-3 h-3 text-yellow-600" />
+        return <AlertTriangle className="w-3 h-3 text-yellow-600" />;
       case "critical":
-        return <XCircle className="w-3 h-3 text-red-600" />
+        return <XCircle className="w-3 h-3 text-red-600" />;
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   return (
     <div className={`rounded-lg p-4 border-2 ${getStatusColor()} transition-all hover:shadow-md`}>
@@ -419,55 +371,127 @@ const VitalCard = ({ icon: Icon, title, value, unit, status, color }) => {
       </div>
       <h3 className="text-sm font-medium text-gray-700 mt-1">{title}</h3>
     </div>
-  )
-}
+  );
+};
 
 // Patient Dashboard Component
 const PatientDashboard = ({ patientId, onLogout }) => {
-  const [vitals, setVitals] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [vitals, setVitals] = useState({
+    heart_rate: null,
+    spo2: null,
+    temperature: null,
+    systolic: null,
+    diastolic: null,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [wsStatus, setWsStatus] = useState("Connecting...");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
+    let ws;
+    let reconnectTimeout;
+
+    const connectWebSocket = () => {
+      ws = new WebSocket(WS_URL);
+      setWsStatus("Connecting...");
+
+      ws.onopen = () => {
+        console.log("WebSocket connected");
+        setWsStatus("Connected");
+        setRetryCount(0);
+        setError(null);
+        fetchVitals();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setVitals({
+            heart_rate: data.heart_rate ?? null,
+            spo2: data.spo2 ?? null,
+            temperature: data.temperature ?? null,
+            systolic: data.systolic ?? null,
+            diastolic: data.diastolic ?? null,
+          });
+          setError(null);
+        } catch (err) {
+          console.error("WebSocket data parse error:", err);
+          setError("Invalid data received");
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setWsStatus("Error");
+        setError("WebSocket connection failed");
+      };
+
+      ws.onclose = (event) => {
+        console.log("WebSocket closed:", event.code, event.reason);
+        setWsStatus("Disconnected");
+        if (retryCount < 5) {
+          reconnectTimeout = setTimeout(() => {
+            setRetryCount(retryCount + 1);
+            connectWebSocket();
+          }, 3000 * (retryCount + 1));
+        } else {
+          setError("Max WebSocket retries reached");
+        }
+      };
+    };
+
     const fetchVitals = async () => {
       try {
-        const data = await mockApiRequest('/api/health')
-        setVitals(data)
-        setError(null)
+        const response = await fetch(`${API_BASE_URL}/api/sensors/latest`);
+        if (!response.ok) throw new Error("Failed to fetch vital signs");
+        const data = await response.json();
+        setVitals({
+          heart_rate: data.heart_rate ?? null,
+          spo2: data.spo2 ?? null,
+          temperature: data.temperature ?? null,
+          systolic: data.systolic ?? null,
+          diastolic: data.diastolic ?? null,
+        });
+        setError(null);
       } catch (err) {
-        setError('Failed to fetch vital signs')
-        console.error(err)
+        console.error("Fetch vitals error:", err.message);
+        setError("Failed to fetch vital signs");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchVitals()
-    const interval = setInterval(fetchVitals, 5000) // Update every 5 seconds
+    connectWebSocket();
 
-    return () => clearInterval(interval)
-  }, [])
+    return () => {
+      if (ws && ws.readyState !== WebSocket.CLOSED) {
+        ws.close();
+      }
+      clearTimeout(reconnectTimeout);
+    };
+  }, [retryCount]);
 
   const getVitalStatus = (type, value) => {
-    if (value === null) return 'bg-gray-100'
+    if (value === null || value === 0 || value === -127) return "critical"; // -127 is DEVICE_DISCONNECTED_C
     switch (type) {
-      case 'temperature':
-        return value > 37.5 ? 'bg-red-100' : value > 37 ? 'bg-yellow-100' : 'bg-green-100'
-      case 'heartRate':
-        return value > 100 ? 'bg-red-100' : value > 90 ? 'bg-yellow-100' : 'bg-green-100'
-      case 'spo2':
-        return value < 95 ? 'bg-red-100' : value < 97 ? 'bg-yellow-100' : 'bg-green-100'
+      case "temperature":
+        return value > 37.5 ? "critical" : value > 37 ? "warning" : "normal";
+      case "heart_rate":
+        return value > 100 ? "critical" : value > 90 ? "warning" : "normal";
+      case "spo2":
+        return value < 95 ? "critical" : value < 97 ? "warning" : "normal";
       default:
-        return 'bg-gray-100'
+        return "normal";
     }
-  }
+  };
 
-  if (loading) return <div className="p-4">Loading...</div>
-  if (error) return <div className="p-4 text-red-500">{error}</div>
+  if (loading) return <div className="p-4 text-gray-600">Loading...</div>;
+  if (error && !vitals.heart_rate && !vitals.spo2 && !vitals.temperature)
+    return <div className="p-4 text-red-500">{error}</div>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
-      {/* Compact Header */}
       <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-pink-100 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
@@ -482,8 +506,12 @@ const PatientDashboard = ({ patientId, onLogout }) => {
             </div>
             <div className="flex items-center space-x-2">
               <div className="flex items-center text-green-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
-                <span className="text-xs font-medium">Live</span>
+                <div
+                  className={`w-2 h-2 rounded-full mr-1 animate-pulse ${
+                    wsStatus === "Connected" ? "bg-green-500" : "bg-red-500"
+                  }`}
+                ></div>
+                <span className="text-xs font-medium">{wsStatus}</span>
               </div>
               <button
                 onClick={onLogout}
@@ -497,12 +525,16 @@ const PatientDashboard = ({ patientId, onLogout }) => {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-4 space-y-4">
-        {/* Status Banner with Delivery Countdown */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
         <div className="bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold">Pregnancy Progress</h2>
-              <p className="text-sm opacity-90">Week 32 of 40 • All vitals normal</p>
+              <p className="text-sm opacity-90">Week 32 of 40 • Monitor vitals</p>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold">56</div>
@@ -516,68 +548,48 @@ const PatientDashboard = ({ patientId, onLogout }) => {
           </div>
         </div>
 
-        {/* Compact Vital Signs Grid */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <VitalCard
             icon={Heart}
             title="Heart Rate"
-            value={Math.round(vitals?.heartRate)}
+            value={vitals.heart_rate ? Math.round(vitals.heart_rate) : "N/A"}
             unit="BPM"
-            status={getVitalStatus('heartRate', vitals?.heartRate)}
+            status={getVitalStatus("heart_rate", vitals.heart_rate)}
             color="bg-gradient-to-r from-red-500 to-pink-500"
           />
           <VitalCard
             icon={Activity}
             title="Oxygen"
-            value={Math.round(vitals?.spo2)}
+            value={vitals.spo2 ? vitals.spo2.toFixed(1) : "N/A"}
             unit="%"
-            status={getVitalStatus('spo2', vitals?.spo2)}
+            status={getVitalStatus("spo2", vitals.spo2)}
             color="bg-gradient-to-r from-blue-500 to-cyan-500"
           />
           <VitalCard
             icon={Thermometer}
             title="Temperature"
-            value={vitals?.temperature?.toFixed(1)}
+            value={vitals.temperature ? vitals.temperature.toFixed(1) : "N/A"}
             unit="°C"
-            status={getVitalStatus('temperature', vitals?.temperature)}
+            status={getVitalStatus("temperature", vitals.temperature)}
             color="bg-gradient-to-r from-orange-500 to-red-500"
           />
         </div>
 
-        {/* Compact Location & Emergency */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-pink-100">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center">
-                <MapPin className="w-4 h-4 text-purple-600 mr-2" />
-                <h3 className="text-sm font-semibold text-gray-800">Location</h3>
-              </div>
-              <span className="text-xs text-gray-500">GPS Active</span>
-            </div>
-            <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg h-20 flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-xs text-gray-600">Location tracking not available</p>
-              </div>
-            </div>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-pink-100">
+          <div className="flex items-center mb-3">
+            <Phone className="w-4 h-4 text-red-600 mr-2" />
+            <h3 className="text-sm font-semibold text-gray-800">Emergency</h3>
           </div>
-
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-pink-100">
-            <div className="flex items-center mb-3">
-              <Phone className="w-4 h-4 text-red-600 mr-2" />
-              <h3 className="text-sm font-semibold text-gray-800">Emergency</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button className="bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded-lg font-medium transition-colors text-sm">
-                📞 Doctor
-              </button>
-              <button className="bg-pink-500 hover:bg-pink-600 text-white py-2 px-3 rounded-lg font-medium transition-colors text-sm">
-                👨‍👩‍👧‍👦 Family
-              </button>
-            </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button className="bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded-lg font-medium transition-colors text-sm">
+              📞 Doctor
+            </button>
+            <button className="bg-pink-500 hover:bg-pink-600 text-white py-2 px-3 rounded-lg font-medium transition-colors text-sm">
+              👨‍👩‍👧‍👦 Family
+            </button>
           </div>
         </div>
 
-        {/* Quick Tips */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-center mb-2">
             <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
@@ -589,18 +601,26 @@ const PatientDashboard = ({ patientId, onLogout }) => {
         </div>
       </main>
     </div>
-  )
-}
+  );
+};
 
 // Doctor Dashboard Component
 const DoctorDashboard = ({ doctorId, onLogout }) => {
-  const [selectedPatient, setSelectedPatient] = useState("patient123")
-  const [vitals, setVitals] = useState(mockVitalsData)
-  const [alerts, setAlerts] = useState(mockAlerts)
-  const [currentView, setCurrentView] = useState("dashboard") // dashboard, notifications
-  const [searchTerm, setSearchTerm] = useState("")
-  const [showAddPatient, setShowAddPatient] = useState(false)
-  const [editingPatient, setEditingPatient] = useState(null)
+  const [selectedPatient, setSelectedPatient] = useState("patient123");
+  const [vitals, setVitals] = useState({
+    heart_rate: null,
+    spo2: null,
+    temperature: null,
+    systolic: null,
+    diastolic: null,
+  });
+  const [alerts, setAlerts] = useState([]);
+  const [currentView, setCurrentView] = useState("dashboard");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddPatient, setShowAddPatient] = useState(false);
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [wsStatus, setWsStatus] = useState("Connecting...");
+  const [retryCount, setRetryCount] = useState(0);
   const [patients, setPatients] = useState([
     {
       id: "patient123",
@@ -619,26 +639,14 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
       name: "Anita Patel",
       age: 25,
       weeks: 28,
-      status: "warning",
+      status: "normal",
       phone: "+91 9876543211",
       email: "anita@email.com",
       conceivedDate: "2024-06-10",
       deliveryDate: "2025-03-17",
       address: "Ahmedabad, Gujarat",
     },
-    {
-      id: "patient789",
-      name: "Meera Singh",
-      age: 31,
-      weeks: 36,
-      status: "normal",
-      phone: "+91 9876543212",
-      email: "meera@email.com",
-      conceivedDate: "2024-04-20",
-      deliveryDate: "2025-01-25",
-      address: "Delhi, India",
-    },
-  ])
+  ]);
 
   const [newPatient, setNewPatient] = useState({
     name: "",
@@ -647,62 +655,146 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
     email: "",
     conceivedDate: "",
     address: "",
-  })
+  });
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setVitals((prev) => ({
-        ...prev,
-        heartRate: 70 + Math.random() * 20,
-        spo2: 95 + Math.random() * 5,
-        temperature: 36.5 + Math.random() * 1,
-        bpSystolic: 110 + Math.random() * 20,
-        bpDiastolic: 70 + Math.random() * 15,
+    let ws;
+    let reconnectTimeout;
+
+    const connectWebSocket = () => {
+      ws = new WebSocket(WS_URL);
+      setWsStatus("Connecting...");
+
+      ws.onopen = () => {
+        console.log("WebSocket connected");
+        setWsStatus("Connected");
+        setRetryCount(0);
+        fetchVitals();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setVitals({
+            heart_rate: data.heart_rate ?? null,
+            spo2: data.spo2 ?? null,
+            temperature: data.temperature ?? null,
+            systolic: data.systolic ?? null,
+            diastolic: data.diastolic ?? null,
+          });
+          checkAlerts(data);
+        } catch (err) {
+          console.error("WebSocket data parse error:", err);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setWsStatus("Error");
+      };
+
+      ws.onclose = (event) => {
+        console.log("WebSocket closed:", event.code, event.reason);
+        setWsStatus("Disconnected");
+        if (retryCount < 5) {
+          reconnectTimeout = setTimeout(() => {
+            setRetryCount(retryCount + 1);
+            connectWebSocket();
+          }, 3000 * (retryCount + 1));
+        }
+      };
+    };
+
+    const fetchVitals = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/sensors/latest`);
+        if (!response.ok) throw new Error("Failed to fetch vital signs");
+        const data = await response.json();
+        setVitals({
+          heart_rate: data.heart_rate ?? null,
+          spo2: data.spo2 ?? null,
+          temperature: data.temperature ?? null,
+          systolic: data.systolic ?? null,
+          diastolic: data.diastolic ?? null,
+        });
+        checkAlerts(data);
+      } catch (err) {
+        console.error("Fetch vitals error:", err.message);
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (ws && ws.readyState !== WebSocket.CLOSED) {
+        ws.close();
+      }
+      clearTimeout(reconnectTimeout);
+    };
+  }, [retryCount]);
+
+  const checkAlerts = (data) => {
+    const newAlerts = [];
+    if (data.heart_rate > 100) {
+      newAlerts.push({
+        message: `Heart Rate: ${data.heart_rate.toFixed(1)} BPM (Elevated)`,
         timestamp: new Date().toISOString(),
-      }))
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
+        severity: "critical",
+      });
+    }
+    if (data.spo2 < 95) {
+      newAlerts.push({
+        message: `SpO2: ${data.spo2.toFixed(1)} % (Low)`,
+        timestamp: new Date().toISOString(),
+        severity: "critical",
+      });
+    }
+    if (data.temperature > 37.5 || data.temperature === -127) {
+      newAlerts.push({
+        message: `Temperature: ${data.temperature.toFixed(1)} °C (${data.temperature === -127 ? "Disconnected" : "High"})`,
+        timestamp: new Date().toISOString(),
+        severity: "critical",
+      });
+    }
+    if (newAlerts.length > 0) {
+      setAlerts((prev) => [...newAlerts, ...prev].slice(0, 5)); // Keep last 5 alerts
+    }
+  };
 
-  // Calculate delivery date (40 weeks from conception)
   const calculateDeliveryDate = (conceivedDate) => {
-    const conceived = new Date(conceivedDate)
-    const delivery = new Date(conceived)
-    delivery.setDate(conceived.getDate() + 280) // 40 weeks = 280 days
-    return delivery.toISOString().split("T")[0]
-  }
+    const conceived = new Date(conceivedDate);
+    const delivery = new Date(conceived);
+    delivery.setDate(conceived.getDate() + 280);
+    return delivery.toISOString().split("T")[0];
+  };
 
-  // Calculate weeks pregnant
   const calculateWeeksPregnant = (conceivedDate) => {
-    const conceived = new Date(conceivedDate)
-    const now = new Date()
-    const diffTime = Math.abs(now - conceived)
-    const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7))
-    return Math.min(diffWeeks, 40)
-  }
+    const conceived = new Date(conceivedDate);
+    const now = new Date();
+    const diffTime = Math.abs(now - conceived);
+    const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+    return Math.min(diffWeeks, 40);
+  };
 
-  // Calculate days until delivery
   const calculateDaysUntilDelivery = (deliveryDate) => {
-    const delivery = new Date(deliveryDate)
-    const now = new Date()
-    const diffTime = delivery - now
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays > 0 ? diffDays : 0
-  }
+    const delivery = new Date(deliveryDate);
+    const now = new Date();
+    const diffTime = delivery - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
 
-  // Filter patients based on search
   const filteredPatients = patients.filter(
     (patient) =>
       patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.phone.includes(searchTerm) ||
       patient.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  );
 
-  // Add new patient
   const handleAddPatient = () => {
     if (newPatient.name && newPatient.conceivedDate) {
-      const deliveryDate = calculateDeliveryDate(newPatient.conceivedDate)
-      const weeks = calculateWeeksPregnant(newPatient.conceivedDate)
+      const deliveryDate = calculateDeliveryDate(newPatient.conceivedDate);
+      const weeks = calculateWeeksPregnant(newPatient.conceivedDate);
       const patient = {
         id: `patient${Date.now()}`,
         ...newPatient,
@@ -710,40 +802,50 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
         weeks,
         deliveryDate,
         status: "normal",
-      }
-      setPatients([...patients, patient])
-      setNewPatient({ name: "", age: "", phone: "", email: "", conceivedDate: "", address: "" })
-      setShowAddPatient(false)
+      };
+      setPatients([...patients, patient]);
+      setNewPatient({ name: "", age: "", phone: "", email: "", conceivedDate: "", address: "" });
+      setShowAddPatient(false);
     }
-  }
+  };
 
-  // Delete patient
   const handleDeletePatient = (patientId) => {
-    setPatients(patients.filter((p) => p.id !== patientId))
+    setPatients(patients.filter((p) => p.id !== patientId));
     if (selectedPatient === patientId) {
-      setSelectedPatient(patients[0]?.id || "")
+      setSelectedPatient(patients[0]?.id || "");
     }
-  }
+  };
 
-  // Update patient
   const handleUpdatePatient = (updatedPatient) => {
-    const deliveryDate = calculateDeliveryDate(updatedPatient.conceivedDate)
-    const weeks = calculateWeeksPregnant(updatedPatient.conceivedDate)
-
+    const deliveryDate = calculateDeliveryDate(updatedPatient.conceivedDate);
+    const weeks = calculateWeeksPregnant(updatedPatient.conceivedDate);
     setPatients(
       patients.map((p) =>
         p.id === updatedPatient.id
           ? { ...updatedPatient, deliveryDate, weeks, age: Number.parseInt(updatedPatient.age) }
           : p,
       ),
-    )
-    setEditingPatient(null)
-  }
+    );
+    setEditingPatient(null);
+  };
+
+  const getVitalStatus = (type, value) => {
+    if (value === null || value === 0 || value === -127) return "critical"; // -127 is DEVICE_DISCONNECTED_C
+    switch (type) {
+      case "temperature":
+        return value > 37.5 ? "critical" : value > 37 ? "warning" : "normal";
+      case "heart_rate":
+        return value > 100 ? "critical" : value > 90 ? "warning" : "normal";
+      case "spo2":
+        return value < 95 ? "critical" : value < 97 ? "warning" : "normal";
+      default:
+        return "normal";
+    }
+  };
 
   if (currentView === "notifications") {
     return (
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
         <header className="bg-white shadow-sm border-b sticky top-0 z-10">
           <div className="max-w-7xl mx-auto px-4 py-3">
             <div className="flex justify-between items-center">
@@ -771,63 +873,38 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
 
         <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Critical Alerts */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-red-600 mb-4 flex items-center">
                 <AlertTriangle className="w-5 h-5 mr-2" />
                 Critical Alerts
               </h2>
               <div className="space-y-4">
-                <div className="border-l-4 border-red-500 bg-red-50 p-4 rounded">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-red-800">Priya Sharma</h3>
-                      <p className="text-red-700">Blood Pressure: 150/95 mmHg (High)</p>
-                      <p className="text-sm text-red-600">2 hours ago</p>
+                {alerts
+                  .filter((alert) => alert.severity === "critical")
+                  .map((alert, index) => (
+                    <div key={index} className="border-l-4 border-red-500 bg-red-50 p-4 rounded">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold text-red-800">
+                            {patients.find((p) => p.id === selectedPatient)?.name}
+                          </h3>
+                          <p className="text-red-700">{alert.message}</p>
+                          <p className="text-sm text-red-600">
+                            {new Date(alert.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                        <button className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
+                          Call Patient
+                        </button>
+                      </div>
                     </div>
-                    <button className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
-                      Call Patient
-                    </button>
-                  </div>
-                </div>
-                <div className="border-l-4 border-red-500 bg-red-50 p-4 rounded">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-red-800">Anita Patel</h3>
-                      <p className="text-red-700">Heart Rate: 125 BPM (Elevated)</p>
-                      <p className="text-sm text-red-600">4 hours ago</p>
-                    </div>
-                    <button className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
-                      Call Patient
-                    </button>
-                  </div>
-                </div>
+                  ))}
+                {alerts.filter((alert) => alert.severity === "critical").length === 0 && (
+                  <p className="text-gray-600">No critical alerts</p>
+                )}
               </div>
             </div>
 
-            {/* Warning Alerts */}
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-yellow-600 mb-4 flex items-center">
-                <AlertTriangle className="w-5 h-5 mr-2" />
-                Warning Alerts
-              </h2>
-              <div className="space-y-4">
-                <div className="border-l-4 border-yellow-500 bg-yellow-50 p-4 rounded">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-yellow-800">Meera Singh</h3>
-                      <p className="text-yellow-700">Temperature: 37.8°C (Elevated)</p>
-                      <p className="text-sm text-yellow-600">1 hour ago</p>
-                    </div>
-                    <button className="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700">
-                      Monitor
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Delivery Reminders */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-blue-600 mb-4 flex items-center">
                 <Calendar className="w-5 h-5 mr-2" />
@@ -835,7 +912,7 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
               </h2>
               <div className="space-y-4">
                 {patients.map((patient) => {
-                  const daysLeft = calculateDaysUntilDelivery(patient.deliveryDate)
+                  const daysLeft = calculateDaysUntilDelivery(patient.deliveryDate);
                   if (daysLeft <= 30 && daysLeft > 0) {
                     return (
                       <div key={patient.id} className="border-l-4 border-blue-500 bg-blue-50 p-4 rounded">
@@ -845,41 +922,20 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                           Due: {new Date(patient.deliveryDate).toLocaleDateString()}
                         </p>
                       </div>
-                    )
+                    );
                   }
-                  return null
+                  return null;
                 })}
-              </div>
-            </div>
-
-            {/* System Notifications */}
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-600 mb-4 flex items-center">
-                <Bell className="w-5 h-5 mr-2" />
-                System Notifications
-              </h2>
-              <div className="space-y-4">
-                <div className="border-l-4 border-gray-500 bg-gray-50 p-4 rounded">
-                  <h3 className="font-semibold text-gray-800">Device Offline</h3>
-                  <p className="text-gray-700">Patient device for Priya Sharma went offline</p>
-                  <p className="text-sm text-gray-600">30 minutes ago</p>
-                </div>
-                <div className="border-l-4 border-green-500 bg-green-50 p-4 rounded">
-                  <h3 className="font-semibold text-green-800">Device Connected</h3>
-                  <p className="text-green-700">Anita Patel's device reconnected successfully</p>
-                  <p className="text-sm text-green-600">1 hour ago</p>
-                </div>
               </div>
             </div>
           </div>
         </main>
       </div>
-    )
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
@@ -898,13 +954,19 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                 className="relative bg-red-100 hover:bg-red-200 p-2 rounded-lg transition-colors"
               >
                 <Bell className="w-4 h-4 text-red-600" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  3
-                </span>
+                {alerts.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {alerts.length}
+                  </span>
+                )}
               </button>
               <div className="flex items-center text-green-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
-                <span className="text-xs font-medium">Live</span>
+                <div
+                  className={`w-2 h-2 rounded-full mr-1 animate-pulse ${
+                    wsStatus === "Connected" ? "bg-green-500" : "bg-red-500"
+                  }`}
+                ></div>
+                <span className="text-xs font-medium">{wsStatus}</span>
               </div>
               <button
                 onClick={onLogout}
@@ -918,7 +980,6 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-4 space-y-4">
-        {/* Patient Management Section */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-sm font-semibold text-gray-800">Patient Management</h2>
@@ -931,7 +992,6 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
             </button>
           </div>
 
-          {/* Search Bar */}
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -943,10 +1003,9 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
             />
           </div>
 
-          {/* Patient Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredPatients.map((patient) => {
-              const daysLeft = calculateDaysUntilDelivery(patient.deliveryDate)
+              const daysLeft = calculateDaysUntilDelivery(patient.deliveryDate);
               return (
                 <div
                   key={patient.id}
@@ -967,8 +1026,8 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                     <div className="flex items-center space-x-1">
                       <button
                         onClick={(e) => {
-                          e.stopPropagation()
-                          setEditingPatient(patient)
+                          e.stopPropagation();
+                          setEditingPatient(patient);
                         }}
                         className="p-1 hover:bg-gray-200 rounded"
                       >
@@ -976,8 +1035,8 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                       </button>
                       <button
                         onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeletePatient(patient.id)
+                          e.stopPropagation();
+                          handleDeletePatient(patient.id);
                         }}
                         className="p-1 hover:bg-red-200 rounded"
                       >
@@ -998,82 +1057,61 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                     </div>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
 
-        {/* Rest of the existing dashboard content... */}
-        {/* (Keep the existing vitals, charts, etc. sections) */}
-        {/* Compact Real-time Vitals */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-gray-800">
               Live Vitals - {patients.find((p) => p.id === selectedPatient)?.name}
             </h2>
             <div className="flex items-center text-green-600">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
-              <span className="text-xs font-medium">Real-time</span>
+              <div
+                className={`w-2 h-2 rounded-full mr-1 animate-pulse ${
+                  wsStatus === "Connected" ? "bg-green-500" : "bg-red-500"
+                }`}
+              ></div>
+              <span className="text-xs font-medium">{wsStatus}</span>
             </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <VitalCard
               icon={Heart}
               title="Heart Rate"
-              value={Math.round(vitals.heartRate)}
+              value={vitals.heart_rate ? Math.round(vitals.heart_rate) : "N/A"}
               unit="BPM"
-              status="normal"
+              status={getVitalStatus("heart_rate", vitals.heart_rate)}
               color="bg-gradient-to-r from-red-500 to-pink-500"
             />
             <VitalCard
               icon={Activity}
               title="Oxygen"
-              value={Math.round(vitals.spo2)}
+              value={vitals.spo2 ? vitals.spo2.toFixed(1) : "N/A"}
               unit="%"
-              status="normal"
+              status={getVitalStatus("spo2", vitals.spo2)}
               color="bg-gradient-to-r from-blue-500 to-cyan-500"
             />
             <VitalCard
               icon={Thermometer}
               title="Temperature"
-              value={vitals.temperature.toFixed(1)}
+              value={vitals.temperature ? vitals.temperature.toFixed(1) : "N/A"}
               unit="°C"
-              status="normal"
+              status={getVitalStatus("temperature", vitals.temperature)}
               color="bg-gradient-to-r from-orange-500 to-red-500"
-            />
-            <VitalCard
-              icon={Gauge}
-              title="Blood Pressure"
-              value={`${Math.round(vitals.bpSystolic)}/${Math.round(vitals.bpDiastolic)}`}
-              unit="mmHg"
-              status="normal"
-              color="bg-gradient-to-r from-purple-500 to-indigo-500"
             />
           </div>
         </div>
 
-        {/* Compact Charts and Data */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Trends Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-800 mb-3">24h Trends</h3>
             <div className="h-32 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg flex items-center justify-center">
-              <p className="text-xs text-gray-500">📈 Chart Integration</p>
+              <p className="text-xs text-gray-500">📈 Chart Integration (Future)</p>
             </div>
           </div>
 
-          {/* Location */}
-          <div className="bg-white rounded-xl p-4 shadow-sm">
-            <div className="flex items-center mb-3">
-              <MapPin className="w-4 h-4 text-purple-600 mr-2" />
-              <h3 className="text-sm font-semibold text-gray-800">Location</h3>
-            </div>
-            <div className="h-32 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg flex items-center justify-center">
-              <p className="text-xs text-gray-500">🗺️ Maps Integration</p>
-            </div>
-          </div>
-
-          {/* Alerts */}
           <div className="bg-white rounded-xl p-4 shadow-sm">
             <div className="flex items-center mb-3">
               <Bell className="w-4 h-4 text-red-600 mr-2" />
@@ -1088,15 +1126,15 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                   }`}
                 >
                   <div className="font-medium">{alert.message}</div>
-                  <div className="text-xs opacity-75">{new Date(alert.timestamp).toLocaleTimeString()}</div>
+                  <div className="text-xs opacity-75">{new Date(alert.timestamp).toLocaleString()}</div>
                 </div>
               ))}
+              {alerts.length === 0 && <p className="text-xs text-gray-600">No recent alerts</p>}
             </div>
           </div>
         </div>
       </main>
 
-      {/* Add Patient Modal */}
       {showAddPatient && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
@@ -1170,7 +1208,6 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
         </div>
       )}
 
-      {/* Edit Patient Modal */}
       {editingPatient && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
@@ -1245,37 +1282,37 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
 // Main App Component
 const App = () => {
-  const [user, setUser] = useState(null)
-  const [userRole, setUserRole] = useState(null)
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   const handleLogin = (role, userId) => {
-    setUser(userId)
-    setUserRole(role)
-  }
+    setUser(userId);
+    setUserRole(role);
+  };
 
   const handleLogout = () => {
-    setUser(null)
-    setUserRole(null)
-  }
-
-  if (!user) {
-    return <Login onLogin={handleLogin} />
-  }
+    setUser(null);
+    setUserRole(null);
+  };
 
   return (
     <>
-      {userRole === "patient" ? (
-        <PatientDashboard patientId={user} onLogout={handleLogout} />
+      {user ? (
+        userRole === "patient" ? (
+          <PatientDashboard patientId={user} onLogout={handleLogout} />
+        ) : (
+          <DoctorDashboard doctorId={user} onLogout={handleLogout} />
+        )
       ) : (
-        <DoctorDashboard doctorId={user} onLogout={handleLogout} />
+        <Login onLogin={handleLogin} />
       )}
     </>
-  )
-}
+  );
+};
 
-export default App
+export default App;
