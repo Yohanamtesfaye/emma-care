@@ -385,86 +385,107 @@ const PatientDashboard = ({ patientId, onLogout }) => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [wsStatus, setWsStatus] = useState("Connecting...");
+  const [wsStatus, setWsStatus] = useState("Connected");
   const [retryCount, setRetryCount] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     let ws;
     let reconnectTimeout;
 
     const connectWebSocket = () => {
-      ws = new WebSocket(WS_URL);
-      setWsStatus("Connecting...");
+      try {
+        ws = new WebSocket(WS_URL);
+        setWsStatus("Connecting...");
 
-      ws.onopen = () => {
-        console.log("WebSocket connected");
-        setWsStatus("Connected");
-        setRetryCount(0);
-        setError(null);
-        fetchVitals();
-      };
+        ws.onopen = () => {
+          console.log("WebSocket connected");
+          setWsStatus("Connected");
+          setRetryCount(0);
+        };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setVitals({
-            heart_rate: data.heart_rate ?? null,
-            spo2: data.spo2 ?? null,
-            temperature: data.temperature ?? null,
-            systolic: data.systolic ?? null,
-            diastolic: data.diastolic ?? null,
-          });
-          setError(null);
-        } catch (err) {
-          console.error("WebSocket data parse error:", err);
-          setError("Invalid data received");
-        }
-      };
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            setVitals({
+              heart_rate: data.heart_rate ?? null,
+              spo2: data.spo2 ?? null,
+              temperature: data.temperature ?? null,
+              systolic: data.systolic ?? null,
+              diastolic: data.diastolic ?? null,
+            });
+            setLastUpdated(new Date());
+            setError(null);
+          } catch (err) {
+            console.error("WebSocket message error:", err);
+          }
+        };
 
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
+        ws.onclose = () => {
+          console.log("WebSocket disconnected");
+          setWsStatus("Disconnected");
+          if (retryCount < 3) {
+            reconnectTimeout = setTimeout(() => {
+              setRetryCount((prev) => prev + 1);
+            }, 2000);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          setWsStatus("Error");
+        };
+      } catch (err) {
+        console.error("WebSocket connection error:", err);
         setWsStatus("Error");
-        setError("WebSocket connection failed");
-      };
-
-      ws.onclose = (event) => {
-        console.log("WebSocket closed:", event.code, event.reason);
-        setWsStatus("Disconnected");
-        if (retryCount < 5) {
-          reconnectTimeout = setTimeout(() => {
-            setRetryCount(retryCount + 1);
-            connectWebSocket();
-          }, 3000 * (retryCount + 1));
-        } else {
-          setError("Max WebSocket retries reached");
-        }
-      };
+      }
     };
 
     const fetchVitals = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/sensors/latest`);
+        setIsRefreshing(true);
+        const response = await fetch(`${API_BASE_URL}/api/data`);
         if (!response.ok) throw new Error("Failed to fetch vital signs");
         const data = await response.json();
-        setVitals({
-          heart_rate: data.heart_rate ?? null,
-          spo2: data.spo2 ?? null,
-          temperature: data.temperature ?? null,
-          systolic: data.systolic ?? null,
-          diastolic: data.diastolic ?? null,
-        });
+        
+        console.log("Patient Dashboard - Raw API data:", data);
+        
+        // Handle array format - get the latest reading (first item in array)
+        if (Array.isArray(data) && data.length > 0) {
+          const latestReading = data[0]; // Most recent reading
+          console.log("Patient Dashboard - Latest reading:", latestReading);
+          setVitals({
+            heart_rate: latestReading.heart_rate ?? null,
+            spo2: latestReading.spo2 ?? null,
+            temperature: latestReading.temperature ?? null,
+            systolic: latestReading.blood_pressure ?? null, // Map blood_pressure to systolic
+            diastolic: null, // Not available in the data
+          });
+          setLastUpdated(new Date(latestReading.timestamp || new Date()));
+        } else {
+          throw new Error("Invalid data format");
+        }
         setError(null);
       } catch (err) {
         console.error("Fetch vitals error:", err.message);
         setError("Failed to fetch vital signs");
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
       }
     };
+
+    // Initial fetch
+    fetchVitals();
+
+    // Set up polling every 3 seconds for more frequent updates
+    const pollInterval = setInterval(fetchVitals, 3000);
 
     connectWebSocket();
 
     return () => {
+      clearInterval(pollInterval);
       if (ws && ws.readyState !== WebSocket.CLOSED) {
         ws.close();
       }
@@ -476,11 +497,21 @@ const PatientDashboard = ({ patientId, onLogout }) => {
     if (value === null || value === 0 || value === -127) return "critical"; // -127 is DEVICE_DISCONNECTED_C
     switch (type) {
       case "temperature":
+        // Handle temperature in Celsius - normal range for body temp
+        if (value < 20 || value > 42) return "critical"; // Sensor error or disconnected
         return value > 37.5 ? "critical" : value > 37 ? "warning" : "normal";
       case "heart_rate":
+        // Handle heart rate - if values are very low, might be sensor issue
+        if (value < 10) return "critical"; // Likely sensor error
         return value > 100 ? "critical" : value > 90 ? "warning" : "normal";
       case "spo2":
+        // Handle SpO2 - if values are very low, might be sensor issue
+        if (value < 50) return "critical"; // Likely sensor error
         return value < 95 ? "critical" : value < 97 ? "warning" : "normal";
+      case "blood_pressure":
+        // Handle blood pressure (systolic) - normal range 90-140 mmHg
+        if (value < 60 || value > 180) return "critical"; // Extreme values
+        return value > 140 || value < 90 ? "warning" : "normal";
       default:
         return "normal";
     }
@@ -513,6 +544,46 @@ const PatientDashboard = ({ patientId, onLogout }) => {
                 ></div>
                 <span className="text-xs font-medium">{wsStatus}</span>
               </div>
+              <button
+                onClick={() => {
+                  const fetchVitals = async () => {
+                    try {
+                      setIsRefreshing(true);
+                      const response = await fetch(`${API_BASE_URL}/api/data`);
+                      if (!response.ok) throw new Error("Failed to fetch vital signs");
+                      const data = await response.json();
+                      
+                      if (Array.isArray(data) && data.length > 0) {
+                        const latestReading = data[0];
+                        setVitals({
+                          heart_rate: latestReading.heart_rate ?? null,
+                          spo2: latestReading.spo2 ?? null,
+                          temperature: latestReading.temperature ?? null,
+                          systolic: latestReading.blood_pressure ?? null,
+                          diastolic: null,
+                        });
+                        setLastUpdated(new Date(latestReading.timestamp || new Date()));
+                      }
+                      setError(null);
+                    } catch (err) {
+                      console.error("Manual refresh error:", err.message);
+                      setError("Failed to refresh data");
+                    } finally {
+                      setIsRefreshing(false);
+                    }
+                  };
+                  fetchVitals();
+                }}
+                disabled={isRefreshing}
+                className={`bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-sm flex items-center ${
+                  isRefreshing ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <div className={`w-3 h-3 mr-1 ${isRefreshing ? "animate-spin" : ""}`}>
+                  {isRefreshing ? "⟳" : "↻"}
+                </div>
+                {isRefreshing ? "Refreshing..." : "Refresh"}
+              </button>
               <button
                 onClick={onLogout}
                 className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-sm"
@@ -575,6 +646,33 @@ const PatientDashboard = ({ patientId, onLogout }) => {
           />
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <VitalCard
+            icon={Activity}
+            title="Blood Pressure"
+            value={vitals.systolic ? `${vitals.systolic.toFixed(0)}/${vitals.diastolic ? vitals.diastolic.toFixed(0) : '--'}` : "N/A"}
+            unit="mmHg"
+            status={getVitalStatus("blood_pressure", vitals.systolic)}
+            color="bg-gradient-to-r from-green-500 to-emerald-500"
+          />
+          <div className="bg-white rounded-lg p-4 border-2 border-gray-200 transition-all hover:shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500">
+                <Clock className="w-4 h-4 text-white" />
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-bold text-gray-800">
+                {lastUpdated ? lastUpdated.toLocaleTimeString() : "N/A"}
+              </div>
+              <div className="text-xs text-gray-500">
+                {lastUpdated ? "Last Updated" : "No Data"}
+              </div>
+            </div>
+            <h3 className="text-sm font-medium text-gray-700 mt-1">Data Status</h3>
+          </div>
+        </div>
+
         <div className="bg-white rounded-xl p-4 shadow-sm border border-pink-100">
           <div className="flex items-center mb-3">
             <Phone className="w-4 h-4 text-red-600 mr-2" />
@@ -621,6 +719,8 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
   const [editingPatient, setEditingPatient] = useState(null);
   const [wsStatus, setWsStatus] = useState("Connecting...");
   const [retryCount, setRetryCount] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [patients, setPatients] = useState([
     {
       id: "patient123",
@@ -642,9 +742,9 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
       status: "normal",
       phone: "+91 9876543211",
       email: "anita@email.com",
-      conceivedDate: "2024-06-10",
-      deliveryDate: "2025-03-17",
-      address: "Ahmedabad, Gujarat",
+      conceivedDate: "2024-06-01",
+      deliveryDate: "2025-03-08",
+      address: "Delhi, NCR",
     },
   ]);
 
@@ -662,70 +762,96 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
     let reconnectTimeout;
 
     const connectWebSocket = () => {
-      ws = new WebSocket(WS_URL);
-      setWsStatus("Connecting...");
+      try {
+        ws = new WebSocket(WS_URL);
+        setWsStatus("Connecting...");
 
-      ws.onopen = () => {
-        console.log("WebSocket connected");
-        setWsStatus("Connected");
-        setRetryCount(0);
-        fetchVitals();
-      };
+        ws.onopen = () => {
+          console.log("WebSocket connected");
+          setWsStatus("Connected");
+          setRetryCount(0);
+        };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setVitals({
-            heart_rate: data.heart_rate ?? null,
-            spo2: data.spo2 ?? null,
-            temperature: data.temperature ?? null,
-            systolic: data.systolic ?? null,
-            diastolic: data.diastolic ?? null,
-          });
-          checkAlerts(data);
-        } catch (err) {
-          console.error("WebSocket data parse error:", err);
-        }
-      };
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            setVitals({
+              heart_rate: data.heart_rate ?? null,
+              spo2: data.spo2 ?? null,
+              temperature: data.temperature ?? null,
+              systolic: data.systolic ?? null,
+              diastolic: data.diastolic ?? null,
+            });
+            setLastUpdated(new Date());
+            checkAlerts(data);
+          } catch (err) {
+            console.error("WebSocket message error:", err);
+          }
+        };
 
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
+        ws.onclose = () => {
+          console.log("WebSocket disconnected");
+          setWsStatus("Disconnected");
+          if (retryCount < 3) {
+            reconnectTimeout = setTimeout(() => {
+              setRetryCount((prev) => prev + 1);
+            }, 2000);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          setWsStatus("Error");
+        };
+      } catch (err) {
+        console.error("WebSocket connection error:", err);
         setWsStatus("Error");
-      };
-
-      ws.onclose = (event) => {
-        console.log("WebSocket closed:", event.code, event.reason);
-        setWsStatus("Disconnected");
-        if (retryCount < 5) {
-          reconnectTimeout = setTimeout(() => {
-            setRetryCount(retryCount + 1);
-            connectWebSocket();
-          }, 3000 * (retryCount + 1));
-        }
-      };
+      }
     };
 
     const fetchVitals = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/sensors/latest`);
+        setIsRefreshing(true);
+        const response = await fetch(`${API_BASE_URL}/api/data`);
         if (!response.ok) throw new Error("Failed to fetch vital signs");
         const data = await response.json();
-        setVitals({
-          heart_rate: data.heart_rate ?? null,
-          spo2: data.spo2 ?? null,
-          temperature: data.temperature ?? null,
-          systolic: data.systolic ?? null,
-          diastolic: data.diastolic ?? null,
-        });
-        checkAlerts(data);
+        
+        console.log("Doctor Dashboard - Raw API data:", data);
+        
+        // Handle array format - get the latest reading (first item in array)
+        if (Array.isArray(data) && data.length > 0) {
+          const latestReading = data[0]; // Most recent reading
+          console.log("Doctor Dashboard - Latest reading:", latestReading);
+          const vitalsData = {
+            heart_rate: latestReading.heart_rate ?? null,
+            spo2: latestReading.spo2 ?? null,
+            temperature: latestReading.temperature ?? null,
+            systolic: latestReading.blood_pressure ?? null, // Map blood_pressure to systolic
+            diastolic: null, // Not available in the data
+          };
+          setVitals(vitalsData);
+          setLastUpdated(new Date(latestReading.timestamp || new Date()));
+          checkAlerts(vitalsData);
+        } else {
+          throw new Error("Invalid data format");
+        }
       } catch (err) {
         console.error("Fetch vitals error:", err.message);
+      } finally {
+        setIsRefreshing(false);
       }
     };
+
+    // Initial fetch
+    fetchVitals();
+
+    // Set up polling every 3 seconds for more frequent updates
+    const pollInterval = setInterval(fetchVitals, 3000);
 
     connectWebSocket();
 
     return () => {
+      clearInterval(pollInterval);
       if (ws && ws.readyState !== WebSocket.CLOSED) {
         ws.close();
       }
@@ -754,6 +880,13 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
         message: `Temperature: ${data.temperature.toFixed(1)} °C (${data.temperature === -127 ? "Disconnected" : "High"})`,
         timestamp: new Date().toISOString(),
         severity: "critical",
+      });
+    }
+    if (data.systolic && (data.systolic > 140 || data.systolic < 90)) {
+      newAlerts.push({
+        message: `Blood Pressure: ${data.systolic.toFixed(0)} mmHg (${data.systolic > 140 ? "High" : "Low"})`,
+        timestamp: new Date().toISOString(),
+        severity: data.systolic > 160 || data.systolic < 70 ? "critical" : "warning",
       });
     }
     if (newAlerts.length > 0) {
@@ -833,11 +966,21 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
     if (value === null || value === 0 || value === -127) return "critical"; // -127 is DEVICE_DISCONNECTED_C
     switch (type) {
       case "temperature":
+        // Handle temperature in Celsius - normal range for body temp
+        if (value < 20 || value > 42) return "critical"; // Sensor error or disconnected
         return value > 37.5 ? "critical" : value > 37 ? "warning" : "normal";
       case "heart_rate":
+        // Handle heart rate - if values are very low, might be sensor issue
+        if (value < 10) return "critical"; // Likely sensor error
         return value > 100 ? "critical" : value > 90 ? "warning" : "normal";
       case "spo2":
+        // Handle SpO2 - if values are very low, might be sensor issue
+        if (value < 50) return "critical"; // Likely sensor error
         return value < 95 ? "critical" : value < 97 ? "warning" : "normal";
+      case "blood_pressure":
+        // Handle blood pressure (systolic) - normal range 90-140 mmHg
+        if (value < 60 || value > 180) return "critical"; // Extreme values
+        return value > 140 || value < 90 ? "warning" : "normal";
       default:
         return "normal";
     }
@@ -968,6 +1111,46 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                 ></div>
                 <span className="text-xs font-medium">{wsStatus}</span>
               </div>
+              <button
+                onClick={() => {
+                  const fetchVitals = async () => {
+                    try {
+                      setIsRefreshing(true);
+                      const response = await fetch(`${API_BASE_URL}/api/data`);
+                      if (!response.ok) throw new Error("Failed to fetch vital signs");
+                      const data = await response.json();
+                      
+                      if (Array.isArray(data) && data.length > 0) {
+                        const latestReading = data[0];
+                        const vitalsData = {
+                          heart_rate: latestReading.heart_rate ?? null,
+                          spo2: latestReading.spo2 ?? null,
+                          temperature: latestReading.temperature ?? null,
+                          systolic: latestReading.blood_pressure ?? null,
+                          diastolic: null,
+                        };
+                        setVitals(vitalsData);
+                        setLastUpdated(new Date(latestReading.timestamp || new Date()));
+                        checkAlerts(vitalsData);
+                      }
+                    } catch (err) {
+                      console.error("Manual refresh error:", err.message);
+                    } finally {
+                      setIsRefreshing(false);
+                    }
+                  };
+                  fetchVitals();
+                }}
+                disabled={isRefreshing}
+                className={`bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-sm flex items-center ${
+                  isRefreshing ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <div className={`w-3 h-3 mr-1 ${isRefreshing ? "animate-spin" : ""}`}>
+                  {isRefreshing ? "⟳" : "↻"}
+                </div>
+                {isRefreshing ? "Refreshing..." : "Refresh"}
+              </button>
               <button
                 onClick={onLogout}
                 className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-sm"
@@ -1101,6 +1284,33 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
               status={getVitalStatus("temperature", vitals.temperature)}
               color="bg-gradient-to-r from-orange-500 to-red-500"
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <VitalCard
+            icon={Activity}
+            title="Blood Pressure"
+            value={vitals.systolic ? `${vitals.systolic.toFixed(0)}/${vitals.diastolic ? vitals.diastolic.toFixed(0) : '--'}` : "N/A"}
+            unit="mmHg"
+            status={getVitalStatus("blood_pressure", vitals.systolic)}
+            color="bg-gradient-to-r from-green-500 to-emerald-500"
+          />
+          <div className="bg-white rounded-lg p-4 border-2 border-gray-200 transition-all hover:shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500">
+                <Clock className="w-4 h-4 text-white" />
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-bold text-gray-800">
+                {lastUpdated ? lastUpdated.toLocaleTimeString() : "N/A"}
+              </div>
+              <div className="text-xs text-gray-500">
+                {lastUpdated ? "Last Updated" : "No Data"}
+              </div>
+            </div>
+            <h3 className="text-sm font-medium text-gray-700 mt-1">Data Status</h3>
           </div>
         </div>
 
