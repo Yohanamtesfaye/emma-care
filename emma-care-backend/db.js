@@ -2,8 +2,8 @@ const mysql = require('mysql2/promise');  // Using promises for better handling
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || '',
+  user: process.env.DB_USER || 'emmacare',
+  password: process.env.DB_PASS || '#Yohana23',
   database: process.env.DB_NAME || 'EmmaCare',
   waitForConnections: true,
   connectionLimit: 10,

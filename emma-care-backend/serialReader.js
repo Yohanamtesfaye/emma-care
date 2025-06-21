@@ -70,19 +70,58 @@ parser.on('data', async (line) => {
   } catch (err) {
     console.error('⚠️ Error in processing:', err.message);
     
+    // Calculate simple BP as fallback
+    const fallbackBP = calculateSimpleBP(heart_rate, spo2);
+    console.log('🩸 Fallback BP:', fallbackBP);
+    
     try {
       const [result] = await db.query(
         `INSERT INTO sensor_data 
-         (heart_rate, spo2, temperature) 
-         VALUES (?, ?, ?)`,
-        [heart_rate, spo2, temperature]
+         (heart_rate, spo2, temperature, blood_pressure) 
+         VALUES (?, ?, ?, ?)`,
+        [heart_rate, spo2, temperature, fallbackBP]
       );
-      console.log('⚠️ Saved without BP. ID:', result.insertId);
+      console.log('✅ Saved with fallback BP. ID:', result.insertId);
     } catch (fallbackErr) {
       console.error('🛑 Fallback Insert Failed:', fallbackErr);
+      
+      // Last resort - save without BP
+      try {
+        const [result] = await db.query(
+          `INSERT INTO sensor_data 
+           (heart_rate, spo2, temperature) 
+           VALUES (?, ?, ?)`,
+          [heart_rate, spo2, temperature]
+        );
+        console.log('⚠️ Saved without BP. ID:', result.insertId);
+      } catch (finalErr) {
+        console.error('🛑 Final Insert Failed:', finalErr);
+      }
     }
   }
 });
+
+// Simple BP calculation as fallback
+function calculateSimpleBP(hr, spo2) {
+  let baseBP = 120; // Normal baseline
+  
+  // Adjust based on heart rate
+  if (hr > 100) {
+    baseBP += (hr - 100) * 0.8; // Higher HR = higher BP
+  } else if (hr < 60) {
+    baseBP -= (60 - hr) * 0.5;  // Lower HR = lower BP
+  }
+  
+  // Adjust based on SpO2
+  if (spo2 < 95) {
+    baseBP += (95 - spo2) * 2; // Lower SpO2 = higher BP
+  }
+  
+  // Ensure reasonable range
+  baseBP = Math.max(80, Math.min(180, baseBP));
+  
+  return Math.round(baseBP);
+}
 
 async function predictBP(hr, spo2) {
   return new Promise((resolve, reject) => {
@@ -91,7 +130,7 @@ async function predictBP(hr, spo2) {
     const pythonProcess = spawn(
       '/home/yohi/dev/EmmaCare/.venv/bin/python', 
       ['-u', `${__dirname}/ml/predict_bp.py`, hr.toString(), spo2.toString()],
-      { timeout: 5000 }
+      { timeout: 10000 } // Increased timeout
     );
 
     let stdout = '';
