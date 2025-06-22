@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 
 const API_BASE_URL = "http://159.89.52.163:3000"
-const WS_URL = "ws://159.89.52.163:8080"
+
 
 const Notifications = ({ user, userRole, onLogout }) => {
   const navigate = useNavigate()
