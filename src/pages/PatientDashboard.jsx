@@ -18,9 +18,8 @@ import {
 } from "lucide-react"
 import VitalCard from "../components/VitalCard"
 
-const API_BASE_URL = "http://localhost:3000"
-const WS_URL = "ws://localhost:8080"
-
+const API_BASE_URL = "http://159.89.52.163:3000"
+const WS_URL = "ws://159.89.52.163:8080"
 const PatientDashboard = ({ patientId, onLogout }) => {
   const navigate = useNavigate()
   const [vitals, setVitals] = useState({
