@@ -16,6 +16,9 @@ import {
   X,
   Save,
   MessageCircle,
+  Users,
+  TrendingUp,
+  Menu,
 } from "lucide-react"
 import VitalCard from "../components/VitalCard"
 
@@ -40,6 +43,7 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
   const [retryCount, setRetryCount] = useState(0)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [patients, setPatients] = useState([
     {
       id: "patient123",
@@ -294,65 +298,118 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50">
+      <header className="bg-white/90 backdrop-blur-sm shadow-sm border-b border-purple-100 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-3 py-3">
           <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-1.5 rounded-lg mr-2">
-                <Stethoscope className="w-5 h-5 text-white" />
+            <div className="flex items-center space-x-3">
+              <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-1.5 rounded-lg shadow-sm">
+                <Stethoscope className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-800">Doctor Portal</h1>
-                <p className="text-xs text-gray-600">Dr. {doctorId}</p>
+                <h1 className="text-base font-semibold text-gray-800">Doctor Portal</h1>
+                <p className="text-xs text-gray-600 hidden sm:block">Dr. {doctorId.split("_")[1]}</p>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
+
+            {/* Desktop Navigation */}
+            <div className="hidden sm:flex items-center space-x-2">
               <button
                 onClick={() => navigate("/chat")}
-                className="bg-blue-100 hover:bg-blue-200 p-2 rounded-lg transition-colors"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 p-2 rounded-lg transition-all shadow-sm"
               >
-                <MessageCircle className="w-4 h-4 text-blue-600" />
+                <MessageCircle className="w-4 h-4 text-white" />
               </button>
               <button
                 onClick={() => navigate("/notifications")}
-                className="relative bg-red-100 hover:bg-red-200 p-2 rounded-lg transition-colors"
+                className="relative bg-gradient-to-r from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 p-2 rounded-lg transition-all shadow-sm"
               >
-                <Bell className="w-4 h-4 text-red-600" />
+                <Bell className="w-4 h-4 text-white" />
                 {alerts.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-yellow-400 text-red-800 text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold text-[10px]">
                     {alerts.length}
                   </span>
                 )}
               </button>
-              <div className="flex items-center text-green-600">
+              <div className="flex items-center bg-white/80 rounded-lg px-2 py-1 shadow-sm">
                 <div
-                  className={`w-2 h-2 rounded-full mr-1 animate-pulse ${
+                  className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
                     wsStatus === "Connected" ? "bg-green-500" : "bg-red-500"
                   }`}
                 ></div>
-                <span className="text-xs font-medium">{wsStatus}</span>
+                <span className="text-xs font-medium text-gray-700">{wsStatus}</span>
               </div>
               <button
                 onClick={onLogout}
-                className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-sm"
+                className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-xs font-medium"
               >
                 Sign Out
               </button>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="sm:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Menu className="w-5 h-5 text-gray-600" />
+            </button>
           </div>
+
+          {/* Mobile Menu */}
+          {showMobileMenu && (
+            <div className="sm:hidden mt-3 pt-3 border-t border-gray-200">
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => {
+                    navigate("/chat")
+                    setShowMobileMenu(false)
+                  }}
+                  className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm text-gray-700">AI Assistant</span>
+                </button>
+                <button
+                  onClick={() => {
+                    navigate("/notifications")
+                    setShowMobileMenu(false)
+                  }}
+                  className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <Bell className="w-4 h-4 text-red-600" />
+                  <span className="text-sm text-gray-700">Notifications</span>
+                  {alerts.length > 0 && (
+                    <span className="bg-red-100 text-red-700 text-xs px-1.5 py-0.5 rounded-full font-medium">
+                      {alerts.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={onLogout}
+                  className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <span className="text-sm text-gray-700">Sign Out</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-4 space-y-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-sm font-semibold text-gray-800">Patient Management</h2>
+      <main className="max-w-7xl mx-auto px-3 py-4 space-y-4">
+        {/* Patient Management Section */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 shadow-sm border border-white/20">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-3 sm:space-y-0">
+            <div>
+              <h2 className="text-base font-semibold text-gray-800 mb-1">Patient Management</h2>
+              <p className="text-xs text-gray-600">Monitor and manage your patients</p>
+            </div>
             <button
               onClick={() => setShowAddPatient(true)}
-              className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm flex items-center transition-colors"
+              className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center transition-all shadow-sm"
             >
-              <Plus className="w-4 h-4 mr-1" />
+              <Plus className="w-3 h-3 mr-1" />
               Add Patient
             </button>
           </div>
@@ -361,10 +418,10 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search patients by name, phone, or email..."
+              placeholder="Search patients..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-sm transition-colors hover:border-gray-400"
             />
           </div>
 
@@ -376,14 +433,14 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                   key={patient.id}
                   className={`p-3 rounded-lg border cursor-pointer transition-all ${
                     selectedPatient === patient.id
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-200 bg-white hover:border-gray-300"
+                      ? "border-purple-300 bg-purple-50 shadow-sm"
+                      : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
                   }`}
                   onClick={() => setSelectedPatient(patient.id)}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <div className="font-semibold text-sm text-gray-800">{patient.name}</div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm text-gray-800">{patient.name}</div>
                       <div className="text-xs text-gray-600">
                         {patient.age}y • {patient.weeks}w pregnant
                       </div>
@@ -394,7 +451,7 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                           e.stopPropagation()
                           setEditingPatient(patient)
                         }}
-                        className="p-1 hover:bg-gray-200 rounded"
+                        className="p-1 hover:bg-gray-200 rounded transition-colors"
                       >
                         <Edit className="w-3 h-3 text-gray-600" />
                       </button>
@@ -403,7 +460,7 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                           e.stopPropagation()
                           handleDeletePatient(patient.id)
                         }}
-                        className="p-1 hover:bg-red-200 rounded"
+                        className="p-1 hover:bg-red-200 rounded transition-colors"
                       >
                         <Trash2 className="w-3 h-3 text-red-600" />
                       </button>
@@ -416,8 +473,8 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                   </div>
                   <div className="text-xs text-gray-600 mb-2">📞 {patient.phone}</div>
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-blue-600 font-medium">
-                      <Clock className="w-3 h-3 inline mr-1" />
+                    <div className="text-xs text-blue-600 font-medium flex items-center">
+                      <Clock className="w-3 h-3 mr-1" />
                       {daysLeft} days to delivery
                     </div>
                   </div>
@@ -427,21 +484,28 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-800">
-              Live Vitals - {patients.find((p) => p.id === selectedPatient)?.name}
-            </h2>
-            <div className="flex items-center text-green-600">
-              <div
-                className={`w-2 h-2 rounded-full mr-1 animate-pulse ${
-                  wsStatus === "Connected" ? "bg-green-500" : "bg-red-500"
-                }`}
-              ></div>
-              <span className="text-xs font-medium">{wsStatus}</span>
+        {/* Live Vitals Section */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 shadow-sm border border-white/20">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-semibold text-gray-800 mb-1">Live Vitals Monitor</h2>
+              <p className="text-xs text-gray-600">
+                Real-time data for {patients.find((p) => p.id === selectedPatient)?.name || "Selected Patient"}
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center bg-white/80 rounded-lg px-2 py-1 shadow-sm">
+                <div
+                  className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                    wsStatus === "Connected" ? "bg-green-500" : "bg-red-500"
+                  }`}
+                ></div>
+                <span className="text-xs font-medium text-gray-700">{wsStatus}</span>
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <VitalCard
               icon={Heart}
               title="Heart Rate"
@@ -466,64 +530,101 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
               status={getVitalStatus("temperature", vitals.temperature)}
               color="bg-gradient-to-r from-orange-500 to-red-500"
             />
+            <VitalCard
+              icon={Activity}
+              title="Blood Pressure"
+              value={
+                vitals.systolic
+                  ? `${vitals.systolic.toFixed(0)}/${vitals.diastolic ? vitals.diastolic.toFixed(0) : "--"}`
+                  : "N/A"
+              }
+              unit="mmHg"
+              status={getVitalStatus("blood_pressure", vitals.systolic)}
+              color="bg-gradient-to-r from-green-500 to-emerald-500"
+            />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <VitalCard
-            icon={Activity}
-            title="Blood Pressure"
-            value={
-              vitals.systolic
-                ? `${vitals.systolic.toFixed(0)}/${vitals.diastolic ? vitals.diastolic.toFixed(0) : "--"}`
-                : "N/A"
-            }
-            unit="mmHg"
-            status={getVitalStatus("blood_pressure", vitals.systolic)}
-            color="bg-gradient-to-r from-green-500 to-emerald-500"
-          />
-          <div className="bg-white rounded-lg p-4 border-2 border-gray-200 transition-all hover:shadow-md">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500">
-                <Clock className="w-4 h-4 text-white" />
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm font-bold text-gray-800">
-                {lastUpdated ? lastUpdated.toLocaleTimeString() : "N/A"}
-              </div>
-              <div className="text-xs text-gray-500">{lastUpdated ? "Last Updated" : "No Data"}</div>
-            </div>
-            <h3 className="text-sm font-medium text-gray-700 mt-1">Data Status</h3>
-          </div>
-        </div>
-
+        {/* Analytics and Alerts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">24h Trends</h3>
-            <div className="h-32 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg flex items-center justify-center">
-              <p className="text-xs text-gray-500">📈 Chart Integration (Future)</p>
+          {/* 24h Trends */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 shadow-sm border border-white/20">
+            <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center">
+              <TrendingUp className="w-4 h-4 mr-2 text-blue-600" />
+              24h Trends
+            </h3>
+            <div className="h-32 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg flex items-center justify-center border border-dashed border-gray-300">
+              <div className="text-center">
+                <TrendingUp className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                <p className="text-xs text-gray-500">Chart Integration Coming Soon</p>
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-4 shadow-sm">
+          {/* Recent Alerts */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 shadow-sm border border-white/20">
             <div className="flex items-center mb-3">
               <Bell className="w-4 h-4 text-red-600 mr-2" />
               <h3 className="text-sm font-semibold text-gray-800">Recent Alerts</h3>
+              {alerts.length > 0 && (
+                <span className="ml-2 bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                  {alerts.length} active
+                </span>
+              )}
             </div>
-            <div className="space-y-2">
-              {alerts.slice(0, 2).map((alert, index) => (
+            <div className="space-y-2 max-h-28 overflow-y-auto">
+              {alerts.slice(0, 3).map((alert, index) => (
                 <div
                   key={index}
-                  className={`p-2 rounded-lg text-xs ${
-                    alert.severity === "critical" ? "bg-red-50 text-red-700" : "bg-yellow-50 text-yellow-700"
+                  className={`p-2 rounded-lg text-xs border-l-2 ${
+                    alert.severity === "critical"
+                      ? "bg-red-50 text-red-700 border-red-400"
+                      : "bg-yellow-50 text-yellow-700 border-yellow-400"
                   }`}
                 >
                   <div className="font-medium">{alert.message}</div>
-                  <div className="text-xs opacity-75">{new Date(alert.timestamp).toLocaleString()}</div>
+                  <div className="text-xs opacity-75 mt-1">{new Date(alert.timestamp).toLocaleString()}</div>
                 </div>
               ))}
-              {alerts.length === 0 && <p className="text-xs text-gray-600">No recent alerts</p>}
+              {alerts.length === 0 && (
+                <div className="text-center py-6">
+                  <Bell className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">No recent alerts</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Patient Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg p-4 text-white shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Total Patients</h3>
+                <p className="text-2xl font-bold">{patients.length}</p>
+              </div>
+              <Users className="w-8 h-8 opacity-80" />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg p-4 text-white shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Active Monitoring</h3>
+                <p className="text-2xl font-bold">{patients.filter((p) => p.status === "normal").length}</p>
+              </div>
+              <Activity className="w-8 h-8 opacity-80" />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg p-4 text-white shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Critical Alerts</h3>
+                <p className="text-2xl font-bold">{alerts.filter((a) => a.severity === "critical").length}</p>
+              </div>
+              <Bell className="w-8 h-8 opacity-80" />
             </div>
           </div>
         </div>
@@ -531,69 +632,74 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
 
       {/* Add Patient Modal */}
       {showAddPatient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800">Add New Patient</h3>
-              <button onClick={() => setShowAddPatient(false)} className="p-1 hover:bg-gray-200 rounded">
+              <button
+                onClick={() => setShowAddPatient(false)}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <input
                 type="text"
                 placeholder="Full Name"
                 value={newPatient.name}
                 onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
               />
-              <input
-                type="number"
-                placeholder="Age"
-                value={newPatient.age}
-                onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
-              />
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                value={newPatient.phone}
-                onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  placeholder="Age"
+                  value={newPatient.age}
+                  onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={newPatient.phone}
+                  onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
+                />
+              </div>
               <input
                 type="email"
                 placeholder="Email Address"
                 value={newPatient.email}
                 onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
               />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Conception Date</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Conception Date</label>
                 <input
                   type="date"
                   value={newPatient.conceivedDate}
                   onChange={(e) => setNewPatient({ ...newPatient, conceivedDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
                 />
               </div>
               <textarea
                 placeholder="Address"
                 value={newPatient.address}
                 onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
                 rows="2"
               />
-              <div className="flex space-x-3">
+              <div className="flex space-x-3 pt-2">
                 <button
                   onClick={() => setShowAddPatient(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg text-sm transition-colors"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddPatient}
-                  className="flex-1 bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg text-sm transition-colors"
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
                 >
                   Add Patient
                 </button>
@@ -605,71 +711,76 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
 
       {/* Edit Patient Modal */}
       {editingPatient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800">Edit Patient</h3>
-              <button onClick={() => setEditingPatient(null)} className="p-1 hover:bg-gray-200 rounded">
+              <button
+                onClick={() => setEditingPatient(null)}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <input
                 type="text"
                 placeholder="Full Name"
                 value={editingPatient.name}
                 onChange={(e) => setEditingPatient({ ...editingPatient, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
               />
-              <input
-                type="number"
-                placeholder="Age"
-                value={editingPatient.age}
-                onChange={(e) => setEditingPatient({ ...editingPatient, age: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
-              />
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                value={editingPatient.phone}
-                onChange={(e) => setEditingPatient({ ...editingPatient, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  placeholder="Age"
+                  value={editingPatient.age}
+                  onChange={(e) => setEditingPatient({ ...editingPatient, age: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={editingPatient.phone}
+                  onChange={(e) => setEditingPatient({ ...editingPatient, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
+                />
+              </div>
               <input
                 type="email"
                 placeholder="Email Address"
                 value={editingPatient.email}
                 onChange={(e) => setEditingPatient({ ...editingPatient, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
               />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Conception Date</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Conception Date</label>
                 <input
                   type="date"
                   value={editingPatient.conceivedDate}
                   onChange={(e) => setEditingPatient({ ...editingPatient, conceivedDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
                 />
               </div>
               <textarea
                 placeholder="Address"
                 value={editingPatient.address || ""}
                 onChange={(e) => setEditingPatient({ ...editingPatient, address: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 text-sm transition-colors"
                 rows="2"
               />
-              <div className="flex space-x-3">
+              <div className="flex space-x-3 pt-2">
                 <button
                   onClick={() => setEditingPatient(null)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg text-sm transition-colors"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleUpdatePatient(editingPatient)}
-                  className="flex-1 bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center"
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
                 >
-                  <Save className="w-4 h-4 mr-1" />
+                  <Save className="w-3 h-3 mr-1" />
                   Update
                 </button>
               </div>

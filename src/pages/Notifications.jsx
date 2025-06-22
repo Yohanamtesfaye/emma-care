@@ -17,7 +17,9 @@ import {
   Phone,
   MessageCircle,
   X,
-  AlertCircle,
+  Shield,
+  TrendingUp,
+  Menu,
 } from "lucide-react"
 
 const API_BASE_URL = "http://localhost:3000"
@@ -29,6 +31,7 @@ const Notifications = ({ user, userRole, onLogout }) => {
   const [filter, setFilter] = useState("all") // all, critical, warning, info
   const [showCallModal, setShowCallModal] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState(null)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [vitals, setVitals] = useState({
     heart_rate: null,
     spo2: null,
@@ -51,14 +54,14 @@ const Notifications = ({ user, userRole, onLogout }) => {
           id: Date.now() + Math.random(),
           type: "critical",
           title: "High Temperature Alert",
-          message: `Body temperature elevated to ${vitalsData.temperature.toFixed(1)}°C (${(vitalsData.temperature * 9/5 + 32).toFixed(1)}°F). This may indicate fever or infection.`,
+          message: `Body temperature elevated to ${vitalsData.temperature.toFixed(1)}°C. This may indicate fever or infection. Please call your doctor immediately!`,
           timestamp,
           icon: "Thermometer",
           read: false,
           actionRequired: true,
           vitalType: "temperature",
           value: vitalsData.temperature,
-          severity: "critical"
+          severity: "critical",
         })
       } else if (vitalsData.temperature > 37.5) {
         newNotifications.push({
@@ -72,26 +75,26 @@ const Notifications = ({ user, userRole, onLogout }) => {
           actionRequired: false,
           vitalType: "temperature",
           value: vitalsData.temperature,
-          severity: "warning"
+          severity: "warning",
         })
       }
     }
 
     // Heart rate monitoring
     if (vitalsData.heart_rate !== null && vitalsData.heart_rate > 0) {
-      if (vitalsData.heart_rate > 120) {
+      if (vitalsData.heart_rate > 120 || vitalsData.heart_rate < 50) {
         newNotifications.push({
           id: Date.now() + Math.random(),
           type: "critical",
-          title: "High Heart Rate Alert",
-          message: `Heart rate elevated to ${Math.round(vitalsData.heart_rate)} BPM. This may indicate stress, fever, or cardiac issues.`,
+          title: "Abnormal Heart Rate Alert",
+          message: `Heart rate is ${Math.round(vitalsData.heart_rate)} BPM. This may indicate a critical issue. Please call your doctor immediately!`,
           timestamp,
           icon: "Heart",
           read: false,
           actionRequired: true,
           vitalType: "heart_rate",
           value: vitalsData.heart_rate,
-          severity: "critical"
+          severity: "critical",
         })
       } else if (vitalsData.heart_rate > 100) {
         newNotifications.push({
@@ -105,126 +108,80 @@ const Notifications = ({ user, userRole, onLogout }) => {
           actionRequired: false,
           vitalType: "heart_rate",
           value: vitalsData.heart_rate,
-          severity: "warning"
-        })
-      } else if (vitalsData.heart_rate < 50) {
-        newNotifications.push({
-          id: Date.now() + Math.random(),
-          type: "critical",
-          title: "Low Heart Rate Alert",
-          message: `Heart rate decreased to ${Math.round(vitalsData.heart_rate)} BPM. This may indicate bradycardia.`,
-          timestamp,
-          icon: "Heart",
-          read: false,
-          actionRequired: true,
-          vitalType: "heart_rate",
-          value: vitalsData.heart_rate,
-          severity: "critical"
+          severity: "warning",
         })
       }
     }
 
-    // Oxygen saturation monitoring
+    // SpO2 monitoring
     if (vitalsData.spo2 !== null && vitalsData.spo2 > 0) {
-      if (vitalsData.spo2 < 90) {
+      if (vitalsData.spo2 < 92) {
         newNotifications.push({
           id: Date.now() + Math.random(),
           type: "critical",
-          title: "Low Oxygen Saturation Alert",
-          message: `Oxygen saturation dropped to ${vitalsData.spo2.toFixed(1)}%. This indicates hypoxemia and requires immediate attention.`,
+          title: "Low Oxygen Level Alert",
+          message: `Oxygen saturation dropped to ${vitalsData.spo2.toFixed(1)}%. This is a critical condition. Please call your doctor immediately!`,
           timestamp,
           icon: "Activity",
           read: false,
           actionRequired: true,
           vitalType: "spo2",
           value: vitalsData.spo2,
-          severity: "critical"
+          severity: "critical",
         })
       } else if (vitalsData.spo2 < 95) {
         newNotifications.push({
           id: Date.now() + Math.random(),
           type: "warning",
-          title: "Low Oxygen Saturation",
-          message: `Oxygen saturation reading of ${vitalsData.spo2.toFixed(1)}% detected. Monitor closely.`,
+          title: "Low Oxygen Level Warning",
+          message: `Oxygen saturation is ${vitalsData.spo2.toFixed(1)}%. Monitor closely.`,
           timestamp,
           icon: "Activity",
           read: false,
           actionRequired: false,
           vitalType: "spo2",
           value: vitalsData.spo2,
-          severity: "warning"
+          severity: "warning",
         })
       }
     }
 
-    // Blood pressure monitoring
+    // Blood pressure monitoring (systolic)
     if (vitalsData.systolic !== null && vitalsData.systolic > 0) {
-      if (vitalsData.systolic > 160) {
+      if (vitalsData.systolic >= 160) {
         newNotifications.push({
           id: Date.now() + Math.random(),
           type: "critical",
           title: "High Blood Pressure Alert",
-          message: `Systolic blood pressure elevated to ${vitalsData.systolic.toFixed(0)} mmHg. This may indicate hypertension or preeclampsia.`,
+          message: `Systolic blood pressure is ${vitalsData.systolic.toFixed(0)} mmHg. This is a critical condition. Please call your doctor immediately!`,
           timestamp,
-          icon: "Activity",
+          icon: "AlertTriangle",
           read: false,
           actionRequired: true,
-          vitalType: "blood_pressure",
+          vitalType: "systolic",
           value: vitalsData.systolic,
-          severity: "critical"
+          severity: "critical",
         })
       } else if (vitalsData.systolic > 140) {
         newNotifications.push({
           id: Date.now() + Math.random(),
           type: "warning",
           title: "Elevated Blood Pressure",
-          message: `Blood pressure reading of ${vitalsData.systolic.toFixed(0)} mmHg detected.`,
+          message: `Systolic blood pressure is ${vitalsData.systolic.toFixed(0)} mmHg. Monitor closely.`,
           timestamp,
-          icon: "Activity",
+          icon: "AlertTriangle",
           read: false,
           actionRequired: false,
-          vitalType: "blood_pressure",
+          vitalType: "systolic",
           value: vitalsData.systolic,
-          severity: "warning"
-        })
-      } else if (vitalsData.systolic < 90) {
-        newNotifications.push({
-          id: Date.now() + Math.random(),
-          type: "critical",
-          title: "Low Blood Pressure Alert",
-          message: `Systolic blood pressure decreased to ${vitalsData.systolic.toFixed(0)} mmHg. This may indicate hypotension.`,
-          timestamp,
-          icon: "Activity",
-          read: false,
-          actionRequired: true,
-          vitalType: "blood_pressure",
-          value: vitalsData.systolic,
-          severity: "critical"
+          severity: "warning",
         })
       }
     }
 
-    // Check for multiple critical conditions simultaneously
-    const criticalConditions = newNotifications.filter(n => n.severity === "critical")
-    if (criticalConditions.length >= 2) {
-      newNotifications.push({
-        id: Date.now() + Math.random(),
-        type: "critical",
-        title: "Multiple Critical Alerts",
-        message: `Multiple vital signs showing abnormal readings: ${criticalConditions.map(c => c.vitalType).join(", ")}. Immediate medical attention required.`,
-        timestamp,
-        icon: "AlertTriangle",
-        read: false,
-        actionRequired: true,
-        vitalType: "multiple",
-        value: null,
-        severity: "critical"
-      })
-    }
-
     // Add new notifications to the list
     if (newNotifications.length > 0) {
-      setNotifications(prev => [...newNotifications, ...prev].slice(0, 50)) // Keep last 50 notifications
+      setNotifications((prev) => [...newNotifications, ...prev].slice(0, 50)) // Keep last 50 notifications
     }
 
     setLastVitalCheck(timestamp)
@@ -248,7 +205,7 @@ const Notifications = ({ user, userRole, onLogout }) => {
           diastolic: null,
         }
         setVitals(vitalsData)
-        
+
         // Check for notifications based on vital signs
         checkVitalSigns(vitalsData)
       }
@@ -283,7 +240,7 @@ const Notifications = ({ user, userRole, onLogout }) => {
               diastolic: data.diastolic ?? null,
             }
             setVitals(vitalsData)
-            
+
             // Check for notifications based on vital signs
             checkVitalSigns(vitalsData)
           } catch (err) {
@@ -346,9 +303,9 @@ const Notifications = ({ user, userRole, onLogout }) => {
           icon: "Calendar",
           read: false,
           actionRequired: false,
-        }
+        },
       ]
-      setNotifications(prev => [...doctorNotifications, ...prev])
+      setNotifications((prev) => [...doctorNotifications, ...prev])
     }
   }, [userRole])
 
@@ -400,13 +357,11 @@ const Notifications = ({ user, userRole, onLogout }) => {
   }
 
   const markAsRead = (id) => {
-    setNotifications(prev => prev.map(notif => 
-      notif.id === id ? { ...notif, read: true } : notif
-    ))
+    setNotifications((prev) => prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif)))
   }
 
   const deleteNotification = (id) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id))
+    setNotifications((prev) => prev.filter((notif) => notif.id !== id))
   }
 
   const handleCallDoctor = (notification = null) => {
@@ -417,21 +372,21 @@ const Notifications = ({ user, userRole, onLogout }) => {
   const confirmCall = (phoneType = "doctor") => {
     const doctorPhone = "+91 9876543210"
     const emergencyNumber = "108"
-    
+
     const phoneNumber = phoneType === "emergency" ? emergencyNumber : doctorPhone
     const callUrl = `tel:${phoneNumber}`
-    
+
     try {
-      window.open(callUrl, '_self')
+      window.open(callUrl, "_self")
       alert(`Calling ${phoneType === "emergency" ? "emergency services" : "doctor"}...`)
-      
+
       if (selectedNotification) {
         markAsRead(selectedNotification.id)
       }
     } catch (error) {
       alert("Failed to initiate call. Please try again or call manually.")
     }
-    
+
     setShowCallModal(false)
     setSelectedNotification(null)
   }
@@ -462,95 +417,151 @@ const Notifications = ({ user, userRole, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3">
+      <header className="bg-white/90 backdrop-blur-sm shadow-sm border-b border-orange-100 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-3 py-3">
           <div className="flex justify-between items-center">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => navigate(userRole === "patient" ? "/patient" : "/doctor")}
-                className="p-2 hover:bg-gray-100 rounded-full mr-3 transition-colors"
+                className="p-1.5 hover:bg-gray-100 rounded-lg mr-1 transition-colors"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="w-4 h-4 text-gray-600" />
               </button>
-              <div className="bg-gradient-to-r from-yellow-500 to-red-600 p-1.5 rounded-lg mr-2">
-                <Bell className="w-5 h-5 text-white" />
+              <div className="bg-gradient-to-r from-yellow-500 to-red-600 p-1.5 rounded-lg shadow-sm">
+                <Bell className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-800">Notifications</h1>
-                <p className="text-xs text-gray-600">
-                  {unreadCount} unread, {criticalCount} critical
+                <h1 className="text-base font-semibold text-gray-800">Notifications Center</h1>
+                <p className="text-xs text-gray-600 hidden sm:block">
+                  {unreadCount} unread • {criticalCount} critical alerts
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+
+            {/* Desktop Navigation */}
+            <div className="hidden sm:flex items-center space-x-2">
               <button
                 onClick={() => navigate("/chat")}
-                className="bg-blue-100 hover:bg-blue-200 p-2 rounded-lg transition-colors"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 p-2 rounded-lg transition-all shadow-sm"
               >
-                <MessageCircle className="w-4 h-4 text-blue-600" />
+                <MessageCircle className="w-4 h-4 text-white" />
               </button>
-              <div className="flex items-center">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-1 rounded-lg mr-1">
+              <div className="flex items-center bg-white/80 rounded-lg px-2 py-1 shadow-sm">
+                <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-1 rounded-lg mr-1.5">
                   {userRole === "patient" ? (
                     <Baby className="w-3 h-3 text-white" />
                   ) : (
                     <Stethoscope className="w-3 h-3 text-white" />
                   )}
                 </div>
-                <span className="text-xs text-gray-600 capitalize">{userRole}</span>
+                <span className="text-xs text-gray-600 capitalize font-medium">{userRole}</span>
               </div>
-              <div className="flex items-center text-green-600">
+              <div className="flex items-center bg-white/80 rounded-lg px-2 py-1 shadow-sm">
                 <div
-                  className={`w-2 h-2 rounded-full mr-1 animate-pulse ${
+                  className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
                     wsStatus === "Connected" ? "bg-green-500" : "bg-red-500"
                   }`}
                 ></div>
-                <span className="text-xs font-medium">{wsStatus}</span>
+                <span className="text-xs font-medium text-gray-700">{wsStatus}</span>
               </div>
               <button
                 onClick={onLogout}
-                className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-sm"
+                className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-xs font-medium"
               >
                 Exit
               </button>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="sm:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Menu className="w-5 h-5 text-gray-600" />
+            </button>
           </div>
+
+          {/* Mobile Menu */}
+          {showMobileMenu && (
+            <div className="sm:hidden mt-3 pt-3 border-t border-gray-200">
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => {
+                    navigate("/chat")
+                    setShowMobileMenu(false)
+                  }}
+                  className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm text-gray-700">AI Assistant</span>
+                </button>
+                <div className="flex items-center space-x-2 p-2">
+                  <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-1 rounded-lg">
+                    {userRole === "patient" ? (
+                      <Baby className="w-3 h-3 text-white" />
+                    ) : (
+                      <Stethoscope className="w-3 h-3 text-white" />
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-700 capitalize">{userRole}</span>
+                </div>
+                <button
+                  onClick={onLogout}
+                  className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <span className="text-sm text-gray-700">Exit</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-4">
+      <main className="max-w-6xl mx-auto px-3 py-4 space-y-4">
         {/* Current Vitals Status */}
         {userRole === "patient" && (
-          <div className="bg-white rounded-xl shadow-sm border mb-4 p-4">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Current Vitals Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <div className="text-center">
-                <div className="font-medium text-gray-700">Heart Rate</div>
-                <div className={`font-bold ${vitals.heart_rate > 100 ? 'text-red-600' : vitals.heart_rate > 90 ? 'text-yellow-600' : 'text-green-600'}`}>
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-white/20 p-4">
+            <div className="flex items-center mb-3">
+              <TrendingUp className="w-4 h-4 text-blue-600 mr-2" />
+              <h3 className="text-sm font-semibold text-gray-800">Current Vitals Status</h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="text-center bg-white/60 rounded-lg p-3">
+                <div className="text-xs font-medium text-gray-700 mb-1">Heart Rate</div>
+                <div
+                  className={`text-lg font-bold ${vitals.heart_rate > 100 ? "text-red-600" : vitals.heart_rate > 90 ? "text-yellow-600" : "text-green-600"}`}
+                >
                   {vitals.heart_rate ? Math.round(vitals.heart_rate) : "N/A"} BPM
                 </div>
               </div>
-              <div className="text-center">
-                <div className="font-medium text-gray-700">Oxygen</div>
-                <div className={`font-bold ${vitals.spo2 < 95 ? 'text-red-600' : vitals.spo2 < 97 ? 'text-yellow-600' : 'text-green-600'}`}>
+              <div className="text-center bg-white/60 rounded-lg p-3">
+                <div className="text-xs font-medium text-gray-700 mb-1">Oxygen</div>
+                <div
+                  className={`text-lg font-bold ${vitals.spo2 < 95 ? "text-red-600" : vitals.spo2 < 97 ? "text-yellow-600" : "text-green-600"}`}
+                >
                   {vitals.spo2 ? vitals.spo2.toFixed(1) : "N/A"}%
                 </div>
               </div>
-              <div className="text-center">
-                <div className="font-medium text-gray-700">Temperature</div>
-                <div className={`font-bold ${vitals.temperature > 37.5 ? 'text-red-600' : vitals.temperature > 37 ? 'text-yellow-600' : 'text-green-600'}`}>
+              <div className="text-center bg-white/60 rounded-lg p-3">
+                <div className="text-xs font-medium text-gray-700 mb-1">Temperature</div>
+                <div
+                  className={`text-lg font-bold ${vitals.temperature > 37.5 ? "text-red-600" : vitals.temperature > 37 ? "text-yellow-600" : "text-green-600"}`}
+                >
                   {vitals.temperature ? vitals.temperature.toFixed(1) : "N/A"}°C
                 </div>
               </div>
-              <div className="text-center">
-                <div className="font-medium text-gray-700">Blood Pressure</div>
-                <div className={`font-bold ${vitals.systolic > 140 ? 'text-red-600' : vitals.systolic > 120 ? 'text-yellow-600' : 'text-green-600'}`}>
+              <div className="text-center bg-white/60 rounded-lg p-3">
+                <div className="text-xs font-medium text-gray-700 mb-1">Blood Pressure</div>
+                <div
+                  className={`text-lg font-bold ${vitals.systolic > 140 ? "text-red-600" : vitals.systolic > 120 ? "text-yellow-600" : "text-green-600"}`}
+                >
                   {vitals.systolic ? vitals.systolic.toFixed(0) : "N/A"} mmHg
                 </div>
               </div>
             </div>
             {lastVitalCheck && (
-              <div className="text-xs text-gray-500 mt-2 text-center">
+              <div className="text-xs text-gray-500 mt-3 text-center flex items-center justify-center">
+                <Clock className="w-3 h-3 mr-1" />
                 Last checked: {formatTimeAgo(lastVitalCheck)}
               </div>
             )}
@@ -558,19 +569,39 @@ const Notifications = ({ user, userRole, onLogout }) => {
         )}
 
         {/* Filter Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border mb-4 p-4">
-          <div className="flex space-x-2 overflow-x-auto">
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-white/20 p-4">
+          <div className="flex flex-wrap gap-2">
             {[
-              { key: "all", label: "All", count: notifications.length },
-              { key: "critical", label: "Critical", count: notifications.filter((n) => n.type === "critical").length },
-              { key: "warning", label: "Warning", count: notifications.filter((n) => n.type === "warning").length },
-              { key: "info", label: "Info", count: notifications.filter((n) => n.type === "info").length },
+              {
+                key: "all",
+                label: "All",
+                count: notifications.length,
+                color: "bg-gray-100 text-gray-700 hover:bg-gray-200",
+              },
+              {
+                key: "critical",
+                label: "Critical",
+                count: notifications.filter((n) => n.type === "critical").length,
+                color: "bg-red-100 text-red-700 hover:bg-red-200",
+              },
+              {
+                key: "warning",
+                label: "Warning",
+                count: notifications.filter((n) => n.type === "warning").length,
+                color: "bg-yellow-100 text-yellow-700 hover:bg-yellow-200",
+              },
+              {
+                key: "info",
+                label: "Info",
+                count: notifications.filter((n) => n.type === "info").length,
+                color: "bg-blue-100 text-blue-700 hover:bg-blue-200",
+              },
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                  filter === tab.key ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                  filter === tab.key ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm" : tab.color
                 }`}
               >
                 {tab.label} ({tab.count})
@@ -582,11 +613,13 @@ const Notifications = ({ user, userRole, onLogout }) => {
         {/* Notifications List */}
         <div className="space-y-3">
           {filteredNotifications.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border p-8 text-center">
-              <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-800 mb-2">No notifications</h3>
-              <p className="text-gray-600">
-                You're all caught up! No {filter !== "all" ? filter : ""} notifications to show.
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-white/20 p-8 text-center">
+              <div className="bg-gray-100 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <Bell className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-800 mb-2">No notifications</h3>
+              <p className="text-sm text-gray-600 max-w-md mx-auto">
+                You're all caught up! No {filter !== "all" ? filter : ""} notifications to show at the moment.
               </p>
             </div>
           ) : (
@@ -595,66 +628,67 @@ const Notifications = ({ user, userRole, onLogout }) => {
               return (
                 <div
                   key={notification.id}
-                  className={`bg-white rounded-xl shadow-sm border-l-4 p-4 transition-all hover:shadow-md ${getNotificationColor(notification.type)} ${
-                    !notification.read ? "border-l-4" : "border-l-2 opacity-75"
+                  className={`bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border-l-4 p-4 transition-all hover:shadow-md ${getNotificationColor(notification.type)} ${
+                    !notification.read ? "border-l-4 shadow-md" : "border-l-2 opacity-90"
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-3 flex-1">
                       <div
-                        className={`p-2 rounded-lg ${notification.type === "critical" ? "bg-red-100" : notification.type === "warning" ? "bg-yellow-100" : "bg-blue-100"}`}
+                        className={`p-2 rounded-lg shadow-sm ${notification.type === "critical" ? "bg-gradient-to-r from-red-500 to-red-600" : notification.type === "warning" ? "bg-gradient-to-r from-yellow-500 to-orange-500" : "bg-gradient-to-r from-blue-500 to-cyan-500"}`}
                       >
-                        <IconComponent className={`w-5 h-5 ${getIconColor(notification.type)}`} />
+                        <IconComponent className="w-4 h-4 text-white" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="font-semibold text-gray-800 text-sm">{notification.title}</h3>
+                          <h3 className="text-sm font-semibold text-gray-800">{notification.title}</h3>
                           {!notification.read && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
                           {notification.actionRequired && (
-                            <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                              Action Required
+                            <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                              ACTION REQUIRED
                             </span>
                           )}
                           {notification.severity === "critical" && (
-                            <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium animate-pulse">
+                            <span className="bg-gradient-to-r from-red-600 to-red-700 text-white text-xs px-2 py-0.5 rounded-full font-medium">
                               CRITICAL
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-700 text-sm mb-2">{notification.message}</p>
+                        <p className="text-sm text-gray-700 mb-2 leading-relaxed">{notification.message}</p>
                         <div className="flex items-center space-x-4 text-xs text-gray-500">
                           <div className="flex items-center">
                             <Clock className="w-3 h-3 mr-1" />
                             {formatTimeAgo(notification.timestamp)}
                           </div>
                           <div className="flex items-center">
+                            <Calendar className="w-3 h-3 mr-1" />
                             {notification.timestamp.toLocaleDateString()} at{" "}
                             {notification.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2 ml-4">
+                    <div className="flex items-center space-x-2 ml-3">
                       {notification.actionRequired && (
-                        <button 
+                        <button
                           onClick={() => handleCallDoctor(notification)}
-                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition-colors flex items-center"
+                          className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center shadow-sm"
                         >
                           <Phone className="w-3 h-3 mr-1" />
-                          Call
+                          Call Doctor
                         </button>
                       )}
                       {!notification.read && (
                         <button
                           onClick={() => markAsRead(notification.id)}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs transition-colors"
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm"
                         >
                           Mark Read
                         </button>
                       )}
                       <button
                         onClick={() => deleteNotification(notification.id)}
-                        className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
                       >
                         <X className="w-4 h-4 text-gray-500" />
                       </button>
@@ -668,22 +702,25 @@ const Notifications = ({ user, userRole, onLogout }) => {
 
         {/* Quick Actions */}
         {userRole === "patient" && (
-          <div className="bg-white rounded-xl shadow-sm border p-4 mt-6">
-            <h3 className="font-semibold text-gray-800 mb-3">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button 
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-white/20 p-4">
+            <div className="flex items-center mb-3">
+              <Shield className="w-4 h-4 text-green-600 mr-2" />
+              <h3 className="text-sm font-semibold text-gray-800">Emergency Actions</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
                 onClick={() => handleCallDoctor()}
-                className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center"
+                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 px-4 rounded-lg text-sm font-medium transition-all shadow-sm flex items-center justify-center space-x-2"
               >
-                <Phone className="w-4 h-4 mr-2" />
-                Call Doctor
+                <Phone className="w-4 h-4" />
+                <span>Call Doctor Now</span>
               </button>
               <button
                 onClick={() => navigate("/chat")}
-                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-3 px-4 rounded-lg text-sm font-medium transition-all shadow-sm flex items-center justify-center space-x-2"
               >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Ask AI Assistant
+                <MessageCircle className="w-4 h-4" />
+                <span>Ask AI Assistant</span>
               </button>
             </div>
           </div>
@@ -692,37 +729,36 @@ const Notifications = ({ user, userRole, onLogout }) => {
 
       {/* Call Confirmation Modal */}
       {showCallModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4 shadow-xl">
             <div className="text-center">
-              <div className="bg-red-100 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <Phone className="w-8 h-8 text-red-600" />
+              <div className="bg-gradient-to-r from-red-500 to-red-600 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center shadow-sm">
+                <Phone className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Call Doctor</h3>
-              <p className="text-gray-600 mb-6">
-                {selectedNotification 
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Emergency Call</h3>
+              <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                {selectedNotification
                   ? `This will call your doctor regarding: "${selectedNotification.title}"`
-                  : "This will call your primary doctor for consultation."
-                }
+                  : "This will call your primary doctor for immediate consultation."}
               </p>
-              <div className="flex space-x-3">
+              <div className="flex space-x-3 mb-4">
                 <button
                   onClick={() => setShowCallModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg transition-colors"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => confirmCall("doctor")}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg transition-colors"
+                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-all shadow-sm"
                 >
                   Call Doctor
                 </button>
               </div>
-              <div className="mt-4 pt-4 border-t">
+              <div className="pt-4 border-t border-gray-200">
                 <button
                   onClick={() => confirmCall("emergency")}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded-lg transition-colors text-sm"
+                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white py-2 px-4 rounded-lg text-sm font-medium transition-all shadow-sm"
                 >
                   Emergency Call (108)
                 </button>

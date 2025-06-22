@@ -1,56 +1,59 @@
-
 "use client"
 
 import { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, Send, Bot, User, MessageCircle, Baby, Stethoscope, Loader } from "lucide-react"
+import { ArrowLeft, Send, Bot, User, MessageCircle, Baby, Stethoscope, Loader, Sparkles, Menu } from "lucide-react"
+import aiEngine from "../utils/aiEngine"
+
+const API_BASE_URL = "http://localhost:3000"
 
 const AIChat = ({ user, userRole, onLogout }) => {
   const navigate = useNavigate()
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Hello! I'm your AI health assistant. I can help answer questions about maternal health, pregnancy, and general wellness. How can I assist you today?",
+      text: "Hello! I'm your AI health assistant. I can answer questions about your measured vital signs and provide general pregnancy advice. How can I assist you today?",
       sender: "ai",
       timestamp: new Date(),
     },
   ])
   const [inputMessage, setInputMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [vitals, setVitals] = useState(null)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
+  useEffect(scrollToBottom, [messages])
+
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const generateAIResponse = async (userMessage) => {
-    // Simulate AI response based on keywords
-    const lowerMessage = userMessage.toLowerCase()
-
-    if (lowerMessage.includes("pregnancy") || lowerMessage.includes("pregnant")) {
-      return "During pregnancy, it's important to maintain regular prenatal checkups, eat a balanced diet rich in folic acid and iron, stay hydrated, and get adequate rest. Always consult with your healthcare provider for personalized advice."
-    } else if (lowerMessage.includes("heart rate") || lowerMessage.includes("pulse")) {
-      return "A normal resting heart rate for adults is typically 60-100 beats per minute. During pregnancy, it's common for heart rate to increase by 10-20 beats per minute. If you notice any unusual patterns, please consult your doctor."
-    } else if (lowerMessage.includes("blood pressure")) {
-      return "Normal blood pressure is generally below 120/80 mmHg. During pregnancy, blood pressure changes are common. High blood pressure (>140/90) during pregnancy requires immediate medical attention as it could indicate preeclampsia."
-    } else if (lowerMessage.includes("temperature") || lowerMessage.includes("fever")) {
-      return "Normal body temperature ranges from 97°F to 99°F (36.1°C to 37.2°C). A fever during pregnancy (>100.4°F or 38°C) should be evaluated by a healthcare provider, especially if accompanied by other symptoms."
-    } else if (lowerMessage.includes("nutrition") || lowerMessage.includes("diet")) {
-      return "A healthy pregnancy diet should include plenty of fruits, vegetables, whole grains, lean proteins, and dairy. Key nutrients include folic acid, iron, calcium, and omega-3 fatty acids. Avoid raw fish, unpasteurized products, and limit caffeine."
-    } else if (lowerMessage.includes("exercise") || lowerMessage.includes("workout")) {
-      return "Moderate exercise during pregnancy is generally safe and beneficial. Activities like walking, swimming, and prenatal yoga are excellent choices. Always consult your healthcare provider before starting any exercise routine during pregnancy."
-    } else if (lowerMessage.includes("sleep") || lowerMessage.includes("rest")) {
-      return "Adequate sleep is crucial during pregnancy. Aim for 7-9 hours per night. Sleep on your side (preferably left) after the first trimester, use pillows for support, and maintain a consistent sleep schedule."
-    } else if (lowerMessage.includes("stress") || lowerMessage.includes("anxiety")) {
-      return "Managing stress during pregnancy is important for both mother and baby. Try relaxation techniques like deep breathing, meditation, prenatal yoga, or talking to a counselor. Don't hesitate to reach out for support."
-    } else {
-      return "I understand your concern. For specific medical questions or symptoms, I always recommend consulting with your healthcare provider who can give you personalized advice based on your individual situation. Is there anything else about general health and wellness I can help you with?"
+    const fetchVitals = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/data`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data && data.length > 0) {
+            const latest = data[0]
+            setVitals({
+              heart_rate: latest.heart_rate,
+              spo2: latest.spo2,
+              temperature: latest.temperature,
+              systolic: latest.blood_pressure,
+            })
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch vitals for AI Chat:", err)
+      }
     }
-  }
+
+    fetchVitals()
+    const interval = setInterval(fetchVitals, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return
@@ -66,18 +69,18 @@ const AIChat = ({ user, userRole, onLogout }) => {
     setInputMessage("")
     setIsLoading(true)
 
-    // Simulate AI processing time
-    setTimeout(async () => {
-      const aiResponse = await generateAIResponse(inputMessage)
+    setTimeout(() => {
+      const aiResponseText = aiEngine.generateResponse(inputMessage, vitals)
+
       const aiMessage = {
         id: Date.now() + 1,
-        text: aiResponse,
+        text: aiResponseText,
         sender: "ai",
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, aiMessage])
       setIsLoading(false)
-    }, 1500)
+    }, 1000)
   }
 
   const handleKeyPress = (e) => {
@@ -88,77 +91,114 @@ const AIChat = ({ user, userRole, onLogout }) => {
   }
 
   const quickQuestions = [
-    "What should I eat during pregnancy?",
     "Is my heart rate normal?",
-    "How much exercise is safe?",
-    "What are signs of complications?",
-    "How to manage pregnancy stress?",
+    "Check my oxygen level",
+    "How is my temperature?",
+    "What about my blood pressure?",
+    "Advice on nutrition",
   ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3">
+      <header className="bg-white/90 backdrop-blur-sm shadow-sm border-b border-blue-100 sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-3 py-3">
           <div className="flex justify-between items-center">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => navigate(userRole === "patient" ? "/patient" : "/doctor")}
-                className="p-2 hover:bg-gray-100 rounded-full mr-3 transition-colors"
+                className="p-1.5 hover:bg-gray-100 rounded-lg mr-1 transition-colors"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="w-4 h-4 text-gray-600" />
               </button>
-              <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2">
-                <MessageCircle className="w-5 h-5 text-white" />
+              <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1.5 rounded-lg shadow-sm">
+                <MessageCircle className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-800">AI Health Assistant</h1>
-                <p className="text-xs text-gray-600">Get instant health guidance</p>
+                <h1 className="text-base font-semibold text-gray-800">AI Health Assistant</h1>
+                <p className="text-xs text-gray-600 hidden sm:block">Get personalized guidance based on your vitals</p>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-1 rounded-lg mr-1">
+
+            {/* Desktop Navigation */}
+            <div className="hidden sm:flex items-center space-x-2">
+              <div className="flex items-center bg-white/80 rounded-lg px-2 py-1 shadow-sm">
+                <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-1 rounded-lg mr-1.5">
                   {userRole === "patient" ? (
                     <Baby className="w-3 h-3 text-white" />
                   ) : (
                     <Stethoscope className="w-3 h-3 text-white" />
                   )}
                 </div>
-                <span className="text-xs text-gray-600 capitalize">{userRole}</span>
+                <span className="text-xs text-gray-600 capitalize font-medium">{userRole}</span>
               </div>
               <button
                 onClick={onLogout}
-                className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-sm"
+                className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-xs font-medium"
               >
                 Exit
               </button>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="sm:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Menu className="w-5 h-5 text-gray-600" />
+            </button>
           </div>
+
+          {/* Mobile Menu */}
+          {showMobileMenu && (
+            <div className="sm:hidden mt-3 pt-3 border-t border-gray-200">
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center space-x-2 p-2">
+                  <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-1 rounded-lg">
+                    {userRole === "patient" ? (
+                      <Baby className="w-3 h-3 text-white" />
+                    ) : (
+                      <Stethoscope className="w-3 h-3 text-white" />
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-700 capitalize">{userRole}</span>
+                </div>
+                <button
+                  onClick={onLogout}
+                  className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <span className="text-sm text-gray-700">Exit</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-4 h-[calc(100vh-80px)] flex flex-col">
-        {/* Chat Messages */}
-        <div className="flex-1 bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col">
+      <main className="max-w-4xl mx-auto px-3 py-4 h-[calc(100vh-80px)] flex flex-col">
+        <div className="flex-1 bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-white/20 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((message) => (
               <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`flex items-start space-x-2 max-w-[80%] ${message.sender === "user" ? "flex-row-reverse space-x-reverse" : ""}`}
+                  className={`flex items-start space-x-2 max-w-[85%] ${message.sender === "user" ? "flex-row-reverse space-x-reverse" : ""}`}
                 >
-                  <div className={`p-2 rounded-full ${message.sender === "user" ? "bg-purple-100" : "bg-blue-100"}`}>
+                  <div
+                    className={`p-2 rounded-lg shadow-sm ${message.sender === "user" ? "bg-gradient-to-r from-purple-500 to-indigo-600" : "bg-gradient-to-r from-blue-500 to-cyan-600"}`}
+                  >
                     {message.sender === "user" ? (
-                      <User className="w-4 h-4 text-purple-600" />
+                      <User className="w-4 h-4 text-white" />
                     ) : (
-                      <Bot className="w-4 h-4 text-blue-600" />
+                      <Bot className="w-4 h-4 text-white" />
                     )}
                   </div>
                   <div
-                    className={`p-3 rounded-lg ${
-                      message.sender === "user" ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-800"
+                    className={`p-3 rounded-lg shadow-sm ${
+                      message.sender === "user"
+                        ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white"
+                        : "bg-white border border-gray-200 text-gray-800"
                     }`}
                   >
-                    <p className="text-sm">{message.text}</p>
+                    <p className="text-sm leading-relaxed">{message.text}</p>
                     <p className={`text-xs mt-1 ${message.sender === "user" ? "text-purple-200" : "text-gray-500"}`}>
                       {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </p>
@@ -169,14 +209,14 @@ const AIChat = ({ user, userRole, onLogout }) => {
 
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex items-start space-x-2 max-w-[80%]">
-                  <div className="p-2 rounded-full bg-blue-100">
-                    <Bot className="w-4 h-4 text-blue-600" />
+                <div className="flex items-start space-x-2 max-w-[85%]">
+                  <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 shadow-sm">
+                    <Bot className="w-4 h-4 text-white" />
                   </div>
-                  <div className="bg-gray-100 text-gray-800 p-3 rounded-lg">
+                  <div className="bg-white border border-gray-200 text-gray-800 p-3 rounded-lg shadow-sm">
                     <div className="flex items-center space-x-2">
                       <Loader className="w-4 h-4 animate-spin text-blue-600" />
-                      <p className="text-sm">AI is thinking...</p>
+                      <p className="text-sm">AI is analyzing your data...</p>
                     </div>
                   </div>
                 </div>
@@ -185,16 +225,18 @@ const AIChat = ({ user, userRole, onLogout }) => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Questions */}
-          {messages.length === 1 && (
-            <div className="p-4 border-t bg-gray-50">
-              <p className="text-sm font-medium text-gray-700 mb-2">Quick questions:</p>
+          {messages.length < 3 && (
+            <div className="p-4 border-t bg-gradient-to-r from-blue-50 to-purple-50">
+              <div className="flex items-center mb-2">
+                <Sparkles className="w-3 h-3 text-blue-600 mr-1" />
+                <p className="text-xs font-medium text-gray-700">Quick questions to get started:</p>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {quickQuestions.map((question, index) => (
                   <button
                     key={index}
                     onClick={() => setInputMessage(question)}
-                    className="text-xs bg-white hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full border border-blue-200 transition-colors"
+                    className="text-xs bg-white hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full border border-blue-200 transition-all shadow-sm"
                   >
                     {question}
                   </button>
@@ -203,29 +245,29 @@ const AIChat = ({ user, userRole, onLogout }) => {
             </div>
           )}
 
-          {/* Message Input */}
           <div className="p-4 border-t bg-white">
             <div className="flex space-x-2">
               <textarea
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask me about pregnancy, health monitoring, or general wellness..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
+                placeholder="Ask about your vital signs or general pregnancy topics..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none transition-colors"
                 rows="2"
                 disabled={isLoading}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || isLoading}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white p-2 rounded-lg transition-colors"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 text-white p-2 rounded-lg transition-all shadow-sm disabled:shadow-none"
               >
                 <Send className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              💡 This AI assistant provides general information only. Always consult your healthcare provider for
-              medical advice.
+            <p className="text-xs text-gray-500 mt-2 flex items-center">
+              <Sparkles className="w-3 h-3 mr-1" />
+              This AI assistant provides general information based on your sensor data. Always consult your healthcare
+              provider for medical advice.
             </p>
           </div>
         </div>
