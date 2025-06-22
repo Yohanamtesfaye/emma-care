@@ -3,6 +3,14 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <HardwareSerial.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+// ========== WiFi Credentials ==========
+const char* ssid = "Yo";
+const char* password = "yohana23";
+const char* serverUrl = "http://192.168.232.112:3000/api/data"; 
+
 
 // ========== MAX30100 Setup ==========
 PulseOximeter pox;
@@ -26,6 +34,29 @@ bool criticalCondition = false;
 unsigned long lastSMSTime = 0;
 const long SMSTimeout = 60000; // 1 minute between SMS alerts
 
+// ========== Send Data to Server ==========
+void sendDataToServer(float hr, float spo2, float temp) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(serverUrl);
+    http.addHeader("Content-Type", "application/json");
+
+    String json = "{";
+    json += "\"heart_rate\":" + String(hr, 1) + ",";
+    json += "\"spo2\":" + String(spo2, 1) + ",";
+    json += "\"temperature\":" + String(temp, 1);
+    json += "}";
+
+    int httpResponseCode = http.POST(json);
+    Serial.print("HTTP Response code: ");
+    Serial.println(httpResponseCode);
+
+    http.end();
+  } else {
+    Serial.println("WiFi not connected!");
+  }
+}
+
 // ========== Core 1 Task: MAX30100 Reader ==========
 void TaskMAX30100(void* pvParameters) {
   (void) pvParameters;
@@ -41,7 +72,6 @@ void TaskMAX30100(void* pvParameters) {
       portENTER_CRITICAL(&mux);
       sharedHR = hr;
       sharedSpO2 = spo2;
-      
       // Check for critical conditions
       if ((hr < 50 || hr > 120) || (spo2 < 90)) {
         criticalCondition = true;
@@ -57,7 +87,7 @@ void TaskMAX30100(void* pvParameters) {
   }
 }
 
-// ========== Core 0 Task: Temp + SMS + Output ==========
+// ========== Core 0 Task: Temp + SMS + Output + HTTP ==========
 void TaskMain(void* pvParameters) {
   (void) pvParameters;
   unsigned long lastPrint = 0;
@@ -84,15 +114,15 @@ void TaskMain(void* pvParameters) {
       temp = tempSensor.getTempCByIndex(0);
       tempSensor.requestTemperatures();
       lastTempRequest = now;
-      
       portENTER_CRITICAL(&mux);
       sharedTemp = temp;
       portEXIT_CRITICAL(&mux);
     }
 
-    // Print every 1 second (matches Node.js expectation)
+    // Print and send HTTP POST every 1 second
     if (now - lastPrint >= 1000) {
       Serial.printf("HR: %.1f bpm | SpO2: %.1f %% | Temp: %.1f C\n", hr, spo2, temp);
+      sendDataToServer(hr, spo2, temp); // <-- Send to server
       lastPrint = now;
     }
 
@@ -102,7 +132,6 @@ void TaskMain(void* pvParameters) {
       message += "HR: " + String(hr, 1) + " bpm\n";
       message += "SpO2: " + String(spo2, 1) + "%\n";
       message += "Temp: " + String(temp, 1) + "C";
-      
       sendSMS("+251946333013", message); // Replace with recipient number
       lastSMSTime = now;
     }
@@ -114,7 +143,6 @@ void TaskMain(void* pvParameters) {
 // ========== SMS Function ==========
 void sendSMS(String number, String message) {
   Serial.println("Sending SMS...");
-  
   sim800.println("AT"); // Check if module is ready
   delay(500);
   sim800.println("AT+CMGF=1"); // Set SMS text mode
@@ -127,7 +155,6 @@ void sendSMS(String number, String message) {
   delay(500);
   sim800.write(26); // Ctrl+Z to send
   delay(5000); // Give time to send
-  
   Serial.println("SMS sent!");
 }
 
@@ -136,6 +163,15 @@ void setup() {
   Serial.begin(115200);
   Wire.begin();
   tempSensor.begin();
+
+  // WiFi connection
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected!");
 
   // Init SIM800
   sim800.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);

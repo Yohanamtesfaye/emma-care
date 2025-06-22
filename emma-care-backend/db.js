@@ -9,7 +9,6 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
-
 // Verify table exists on startup
 async function initialize() {
   try {

@@ -54,8 +54,10 @@ const Login = ({ onLogin }) => {
 
   const handleSubmit = async () => {
     try {
-      if (email && password) {
-        onLogin(role, role === "patient" ? `patient_${email}` : `doctor_${email}`)
+      if (role === "patient" && email === "patient@gmail.com" && password === "12345678") {
+        onLogin("patient", `patient_${email}`)
+      } else if (role === "doctor" && email === "doctor@gmail.com" && password === "12345678") {
+        onLogin("doctor", `doctor_${email}`)
       } else {
         throw new Error("Invalid credentials")
       }
