@@ -24,7 +24,6 @@ import {
 
 const API_BASE_URL = "http://159.89.52.163:3000"
 
-
 const Notifications = ({ user, userRole, onLogout }) => {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
@@ -216,53 +215,6 @@ const Notifications = ({ user, userRole, onLogout }) => {
 
   // WebSocket connection for real-time updates
   useEffect(() => {
-    let ws
-    let reconnectTimeout
-
-    const connectWebSocket = () => {
-      try {
-        ws = new WebSocket(WS_URL)
-        setWsStatus("Connecting...")
-
-        ws.onopen = () => {
-          console.log("WebSocket connected")
-          setWsStatus("Connected")
-        }
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data)
-            const vitalsData = {
-              heart_rate: data.heart_rate ?? null,
-              spo2: data.spo2 ?? null,
-              temperature: data.temperature ?? null,
-              systolic: data.systolic ?? null,
-              diastolic: data.diastolic ?? null,
-            }
-            setVitals(vitalsData)
-
-            // Check for notifications based on vital signs
-            checkVitalSigns(vitalsData)
-          } catch (err) {
-            console.error("WebSocket message error:", err)
-          }
-        }
-
-        ws.onclose = () => {
-          console.log("WebSocket disconnected")
-          setWsStatus("Disconnected")
-          reconnectTimeout = setTimeout(connectWebSocket, 2000)
-        }
-
-        ws.onerror = (error) => {
-          console.error("WebSocket error:", error)
-          setWsStatus("Error")
-        }
-      } catch (err) {
-        console.error("WebSocket connection error:", err)
-        setWsStatus("Error")
-      }
-    }
 
     // Initial fetch and WebSocket connection
     fetchVitals()

@@ -80,57 +80,6 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
   })
 
   useEffect(() => {
-    let ws
-    let reconnectTimeout
-
-    const connectWebSocket = () => {
-      try {
-        ws = new WebSocket(WS_URL)
-        setWsStatus("Connecting...")
-
-        ws.onopen = () => {
-          console.log("WebSocket connected")
-          setWsStatus("Connected")
-          setRetryCount(0)
-        }
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data)
-            setVitals({
-              heart_rate: data.heart_rate ?? null,
-              spo2: data.spo2 ?? null,
-              temperature: data.temperature ?? null,
-              systolic: data.systolic ?? null,
-              diastolic: data.diastolic ?? null,
-            })
-            setLastUpdated(new Date())
-            checkAlerts(data)
-          } catch (err) {
-            console.error("WebSocket message error:", err)
-          }
-        }
-
-        ws.onclose = () => {
-          console.log("WebSocket disconnected")
-          setWsStatus("Disconnected")
-          if (retryCount < 3) {
-            reconnectTimeout = setTimeout(() => {
-              setRetryCount((prev) => prev + 1)
-            }, 2000)
-          }
-        }
-
-        ws.onerror = (error) => {
-          console.error("WebSocket error:", error)
-          setWsStatus("Error")
-        }
-      } catch (err) {
-        console.error("WebSocket connection error:", err)
-        setWsStatus("Error")
-      }
-    }
-
     const fetchVitals = async () => {
       try {
         setIsRefreshing(true)
