@@ -18,7 +18,7 @@ import {
 } from "lucide-react"
 import VitalCard from "../components/VitalCard"
 
-const API_BASE_URL = "https://hulumoya.zapto.org/emmacare/api/data"
+const API_BASE_URL = "https://hulumoya.zapto.org/emmacare"
 const PatientDashboard = ({ patientId, onLogout }) => {
   const navigate = useNavigate()
   const [vitals, setVitals] = useState({
@@ -158,7 +158,7 @@ const PatientDashboard = ({ patientId, onLogout }) => {
 
     fetchVitals()
     const pollInterval = setInterval(fetchVitals, 3000)
-    connectWebSocket()
+    // connectWebSocket() // Removed undefined call
 
     return () => {
       clearInterval(pollInterval)

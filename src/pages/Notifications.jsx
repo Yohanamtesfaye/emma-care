@@ -215,10 +215,8 @@ const Notifications = ({ user, userRole, onLogout }) => {
 
   // WebSocket connection for real-time updates
   useEffect(() => {
-
     // Initial fetch and WebSocket connection
     fetchVitals()
-    connectWebSocket()
 
     // Poll for updates every 30 seconds as backup
     const pollInterval = setInterval(fetchVitals, 30000)

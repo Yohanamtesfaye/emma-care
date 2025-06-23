@@ -111,14 +111,9 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
 
     fetchVitals()
     const pollInterval = setInterval(fetchVitals, 3000)
-    connectWebSocket()
 
     return () => {
       clearInterval(pollInterval)
-      if (ws && ws.readyState !== WebSocket.CLOSED) {
-        ws.close()
-      }
-      clearTimeout(reconnectTimeout)
     }
   }, [retryCount])
 
