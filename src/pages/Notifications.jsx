@@ -22,7 +22,7 @@ import {
   Menu,
 } from "lucide-react"
 
-const API_BASE_URL = "http://159.89.52.163:3000"
+const API_BASE_URL = "https://hulumoya.zapto.org/emmacare"
 
 const Notifications = ({ user, userRole, onLogout }) => {
   const navigate = useNavigate()

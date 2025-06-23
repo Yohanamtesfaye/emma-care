@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 import VitalCard from "../components/VitalCard"
 
-const API_BASE_URL = "http://159.89.52.163:3000"
+const API_BASE_URL = "https://hulumoya.zapto.org/emmacare"
 
 const DoctorDashboard = ({ doctorId, onLogout }) => {
   const navigate = useNavigate()

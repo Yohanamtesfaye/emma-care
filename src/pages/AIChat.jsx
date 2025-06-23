@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Send, Bot, User, MessageCircle, Baby, Stethoscope, Loader, Sparkles, Menu } from "lucide-react"
 import aiEngine from "../utils/aiEngine"
 
-const API_BASE_URL = "http://159.89.52.163:3000"
+const API_BASE_URL = "https://hulumoya.zapto.org/emmacare"
 
 
 const AIChat = ({ user, userRole, onLogout }) => {
