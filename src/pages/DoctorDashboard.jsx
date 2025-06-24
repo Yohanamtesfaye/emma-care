@@ -261,7 +261,7 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-1.5 rounded-lg shadow-sm">
-                <Stethoscope className="w-4 h-4 text-white" />
+                <img src="/logo.jpg" alt="Logo" className="w-8 h-8 object-contain rounded" />
               </div>
               <div>
                 <h1 className="text-base font-semibold text-gray-800">Doctor Portal</h1>
