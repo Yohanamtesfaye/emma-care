@@ -473,7 +473,8 @@ const PatientDashboard = ({ patientId, onLogout }) => {
             <h3 className="text-sm font-semibold text-gray-800">{t('emergency')}</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 px-4 rounded-lg text-sm font-medium transition-all shadow-sm flex items-center justify-center space-x-2">
+            <button className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 px-4 rounded-lg text-sm font-medium transition-all shadow-sm flex items-center justify-center space-x-2"
+              onClick={() => window.open('tel:+919876543210', '_self')}>
               <Phone className="w-4 h-4" />
               <span>{t('call')}</span>
             </button>
