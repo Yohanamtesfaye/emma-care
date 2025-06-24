@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Send, Bot, User, MessageCircle, Baby, Stethoscope, Loader, Sparkles, Menu } from "lucide-react"
 import aiEngine from "../utils/aiEngine"
 
-const API_BASE_URL = "https://hulumoya.zapto.org/emmacare"
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 
 const AIChat = ({ user, userRole, onLogout }) => {
@@ -21,6 +21,12 @@ const AIChat = ({ user, userRole, onLogout }) => {
   const [inputMessage, setInputMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [vitals, setVitals] = useState(null)
+  const [lastValidVitals, setLastValidVitals] = useState({
+    heart_rate: null,
+    spo2: null,
+    temperature: null,
+    systolic: null,
+  })
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const messagesEndRef = useRef(null)
 
@@ -34,16 +40,24 @@ const AIChat = ({ user, userRole, onLogout }) => {
     const fetchVitals = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/data`)
+        console.log(`${API_BASE_URL}/api/data`)
         if (response.ok) {
           const data = await response.json()
           if (data && data.length > 0) {
             const latest = data[0]
-            setVitals({
+            const newVitals = {
               heart_rate: latest.heart_rate,
               spo2: latest.spo2,
               temperature: latest.temperature,
               systolic: latest.blood_pressure,
-            })
+            }
+            setVitals(newVitals)
+            setLastValidVitals(prev => ({
+              heart_rate: (newVitals.heart_rate && newVitals.heart_rate > 0) ? newVitals.heart_rate : prev.heart_rate,
+              spo2: (newVitals.spo2 && newVitals.spo2 > 0) ? newVitals.spo2 : prev.spo2,
+              temperature: (newVitals.temperature && newVitals.temperature > 20 && newVitals.temperature !== -127) ? newVitals.temperature : prev.temperature,
+              systolic: (newVitals.systolic && newVitals.systolic > 60 && newVitals.systolic < 180) ? newVitals.systolic : prev.systolic,
+            }))
           }
         }
       } catch (err) {
@@ -55,6 +69,21 @@ const AIChat = ({ user, userRole, onLogout }) => {
     const interval = setInterval(fetchVitals, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    // Load lastValidVitals from localStorage on mount
+    const stored = localStorage.getItem('lastValidVitals')
+    if (stored) {
+      try {
+        setLastValidVitals(JSON.parse(stored))
+      } catch {}
+    }
+  }, [])
+
+  useEffect(() => {
+    // Save lastValidVitals to localStorage whenever it changes
+    localStorage.setItem('lastValidVitals', JSON.stringify(lastValidVitals))
+  }, [lastValidVitals])
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return
@@ -71,7 +100,7 @@ const AIChat = ({ user, userRole, onLogout }) => {
     setIsLoading(true)
 
     setTimeout(() => {
-      const aiResponseText = aiEngine.generateResponse(inputMessage, vitals)
+      const aiResponseText = aiEngine.generateResponse(inputMessage, lastValidVitals)
 
       const aiMessage = {
         id: Date.now() + 1,

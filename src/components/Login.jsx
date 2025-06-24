@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { Baby, User, Stethoscope, ArrowLeft, Upload, Camera, UserPlus, MessageCircle } from "lucide-react"
-
+import { Baby, User, Stethoscope, ArrowLeft, Upload, Camera, UserPlus, MessageCircle, Globe } from "lucide-react"
+import { useTranslation } from 'react-i18next'
+import logo from '../../public/logo.jpg'
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -24,6 +25,8 @@ const Login = ({ onLogin }) => {
   })
 
   const [formErrors, setFormErrors] = useState({})
+
+  const { t, i18n } = useTranslation()
 
   const validateDoctorForm = () => {
     const errors = {}
@@ -69,7 +72,16 @@ const Login = ({ onLogin }) => {
   if (showRegister) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-3">
-        <div className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border border-gray-100 p-5">
+        <div className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border border-gray-100 p-5 relative">
+          {/* Language Switcher */}
+          <button
+            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'am' : 'en')}
+            className="absolute top-3 right-3 flex items-center space-x-1 px-2 py-1 rounded bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold shadow"
+            title={t('navbar_language')}
+          >
+            <Globe className="w-4 h-4" />
+            <span>{i18n.language === 'en' ? t('navbar_amharic') : t('navbar_english')}</span>
+          </button>
           <div className="flex items-center mb-5">
             <button
               onClick={() => setShowRegister(false)}
@@ -259,13 +271,22 @@ const Login = ({ onLogin }) => {
         </button>
       </div>
 
-      <div className="w-full max-w-sm bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border border-gray-100 p-6">
+      <div className="w-full max-w-sm bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border border-gray-100 p-6 relative">
+        {/* Language Switcher */}
+        <button
+          onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'am' : 'en')}
+          className="absolute top-3 right-3 flex items-center space-x-1 px-2 py-1 rounded bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold shadow"
+          title={t('navbar_language')}
+        >
+          <Globe className="w-4 h-4" />
+          <span>{i18n.language === 'en' ? t('navbar_amharic') : t('navbar_english')}</span>
+        </button>
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full mb-3 shadow-md">
-            <Baby className="w-6 h-6 text-white" />
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full mb-3 shadow-md">
+            <img className="rounded-full" src={logo} alt="" />
           </div>
-          <h1 className="text-xl font-bold text-gray-800 mb-1">Maternal Health</h1>
-          <p className="text-sm text-gray-600">Monitor • Care • Protect</p>
+          <h1 className="text-xl font-bold text-gray-800 mb-1">{t('log')}</h1>
+          <p className="text-sm text-gray-600">{t("logintro")}</p>
         </div>
 
         {error && (
@@ -284,7 +305,7 @@ const Login = ({ onLogin }) => {
               }`}
             >
               <User className="w-4 h-4 mx-auto mb-1" />
-              Patient
+              {t('patient')}
             </button>
             <button
               type="button"
@@ -296,7 +317,7 @@ const Login = ({ onLogin }) => {
               }`}
             >
               <Stethoscope className="w-4 h-4 mx-auto mb-1" />
-              Doctor
+              {t('doctor')}
             </button>
           </div>
 
@@ -322,19 +343,18 @@ const Login = ({ onLogin }) => {
             onClick={handleSubmit}
             className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-2.5 px-4 rounded-md text-sm font-medium hover:from-pink-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
           >
-            Sign In
+            {t('signin')}
           </button>
         </div>
 
         <div className="mt-6 text-center space-y-3">
-          <p className="text-xs text-gray-500">Demo: any email/password works</p>
           {role === "doctor" && (
             <button
               onClick={() => setShowRegister(true)}
               className="flex items-center justify-center w-full text-xs text-purple-600 hover:text-purple-800 font-medium py-2 px-3 rounded-md hover:bg-purple-50 transition-all"
             >
               <UserPlus className="w-3 h-3 mr-1" />
-              Register as a new doctor
+              {t('register')}
             </button>
           )}
         </div>

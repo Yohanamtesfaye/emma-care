@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import {
   Heart,
   Activity,
@@ -22,12 +22,19 @@ import {
 } from "lucide-react"
 import VitalCard from "../components/VitalCard"
 
-const API_BASE_URL = "https://hulumoya.zapto.org/emmacare"
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 const DoctorDashboard = ({ doctorId, onLogout }) => {
   const navigate = useNavigate()
   const [selectedPatient, setSelectedPatient] = useState("patient123")
   const [vitals, setVitals] = useState({
+    heart_rate: null,
+    spo2: null,
+    temperature: null,
+    systolic: null,
+    diastolic: null,
+  })
+  const [lastValidVitals, setLastValidVitals] = useState({
     heart_rate: null,
     spo2: null,
     temperature: null,
@@ -99,6 +106,13 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
           setVitals(vitalsData)
           setLastUpdated(new Date(latestReading.timestamp || new Date()))
           checkAlerts(vitalsData)
+          setLastValidVitals(prev => ({
+            heart_rate: (vitalsData.heart_rate && vitalsData.heart_rate > 0) ? vitalsData.heart_rate : prev.heart_rate,
+            spo2: (vitalsData.spo2 && vitalsData.spo2 > 0) ? vitalsData.spo2 : prev.spo2,
+            temperature: (vitalsData.temperature && vitalsData.temperature > 20 && vitalsData.temperature !== -127) ? vitalsData.temperature : prev.temperature,
+            systolic: (vitalsData.systolic && vitalsData.systolic > 60 && vitalsData.systolic < 180) ? vitalsData.systolic : prev.systolic,
+            diastolic: prev.diastolic,
+          }))
         } else {
           throw new Error("Invalid data format")
         }
@@ -257,14 +271,14 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
 
             {/* Desktop Navigation */}
             <div className="hidden sm:flex items-center space-x-2">
-              <button
-                onClick={() => navigate("/chat")}
+              <Link
+                to="/chat"
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 p-2 rounded-lg transition-all shadow-sm"
               >
                 <MessageCircle className="w-4 h-4 text-white" />
-              </button>
-              <button
-                onClick={() => navigate("/notifications")}
+              </Link>
+              <Link
+                to="/notifications"
                 className="relative bg-gradient-to-r from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 p-2 rounded-lg transition-all shadow-sm"
               >
                 <Bell className="w-4 h-4 text-white" />
@@ -273,7 +287,7 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                     {alerts.length}
                   </span>
                 )}
-              </button>
+              </Link>
               <div className="flex items-center bg-white/80 rounded-lg px-2 py-1 shadow-sm">
                 <div
                   className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
@@ -303,21 +317,17 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
           {showMobileMenu && (
             <div className="sm:hidden mt-3 pt-3 border-t border-gray-200">
               <div className="flex flex-col space-y-2">
-                <button
-                  onClick={() => {
-                    navigate("/chat")
-                    setShowMobileMenu(false)
-                  }}
+                <Link
+                  to="/chat"
+                  onClick={() => setShowMobileMenu(false)}
                   className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <MessageCircle className="w-4 h-4 text-blue-600" />
                   <span className="text-sm text-gray-700">AI Assistant</span>
-                </button>
-                <button
-                  onClick={() => {
-                    navigate("/notifications")
-                    setShowMobileMenu(false)
-                  }}
+                </Link>
+                <Link
+                  to="/notifications"
+                  onClick={() => setShowMobileMenu(false)}
                   className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <Bell className="w-4 h-4 text-red-600" />
@@ -327,7 +337,7 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
                       {alerts.length}
                     </span>
                   )}
-                </button>
+                </Link>
                 <button
                   onClick={onLogout}
                   className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
@@ -452,37 +462,33 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
             <VitalCard
               icon={Heart}
               title="Heart Rate"
-              value={vitals.heart_rate ? Math.round(vitals.heart_rate) : "N/A"}
+              value={lastValidVitals.heart_rate ? Math.round(lastValidVitals.heart_rate) : "N/A"}
               unit="BPM"
-              status={getVitalStatus("heart_rate", vitals.heart_rate)}
+              status={getVitalStatus("heart_rate", lastValidVitals.heart_rate)}
               color="bg-gradient-to-r from-red-500 to-pink-500"
             />
             <VitalCard
               icon={Activity}
               title="Oxygen"
-              value={vitals.spo2 ? vitals.spo2.toFixed(1) : "N/A"}
+              value={lastValidVitals.spo2 ? lastValidVitals.spo2.toFixed(1) : "N/A"}
               unit="%"
-              status={getVitalStatus("spo2", vitals.spo2)}
+              status={getVitalStatus("spo2", lastValidVitals.spo2)}
               color="bg-gradient-to-r from-blue-500 to-cyan-500"
             />
             <VitalCard
               icon={Thermometer}
               title="Temperature"
-              value={vitals.temperature ? vitals.temperature.toFixed(1) : "N/A"}
+              value={lastValidVitals.temperature ? lastValidVitals.temperature.toFixed(1) : "N/A"}
               unit="°C"
-              status={getVitalStatus("temperature", vitals.temperature)}
+              status={getVitalStatus("temperature", lastValidVitals.temperature)}
               color="bg-gradient-to-r from-orange-500 to-red-500"
             />
             <VitalCard
               icon={Activity}
               title="Blood Pressure"
-              value={
-                vitals.systolic
-                  ? `${vitals.systolic.toFixed(0)}/${vitals.diastolic ? vitals.diastolic.toFixed(0) : "--"}`
-                  : "N/A"
-              }
+              value={lastValidVitals.systolic ? `${lastValidVitals.systolic.toFixed(0)}/${lastValidVitals.diastolic ? lastValidVitals.diastolic.toFixed(0) : "--"}` : "N/A"}
               unit="mmHg"
-              status={getVitalStatus("blood_pressure", vitals.systolic)}
+              status={getVitalStatus("blood_pressure", lastValidVitals.systolic)}
               color="bg-gradient-to-r from-green-500 to-emerald-500"
             />
           </div>

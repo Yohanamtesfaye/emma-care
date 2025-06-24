@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import React, { useState, useEffect, useRef } from "react"
+import { useNavigate, Link } from "react-router-dom"
 import {
   Heart,
   Activity,
@@ -15,13 +15,51 @@ import {
   MessageCircle,
   Users,
   Menu,
+  Globe,
 } from "lucide-react"
 import VitalCard from "../components/VitalCard"
+import { useTranslation } from 'react-i18next'
 
-const API_BASE_URL = "https://hulumoya.zapto.org/emmacare"
+// ErrorBoundary component for catching errors in the dashboard
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, errorInfo) {
+    // Optionally log error
+    console.error("ErrorBoundary caught an error:", error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-red-50">
+          <div className="bg-white p-6 rounded shadow text-center">
+            <h2 className="text-lg font-bold text-red-600 mb-2">Something went wrong.</h2>
+            <p className="text-gray-700 mb-4">{this.state.error?.message || "An unexpected error occurred."}</p>
+            <button className="bg-pink-500 text-white px-4 py-2 rounded" onClick={() => window.location.reload()}>Reload</button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 const PatientDashboard = ({ patientId, onLogout }) => {
   const navigate = useNavigate()
   const [vitals, setVitals] = useState({
+    heart_rate: null,
+    spo2: null,
+    temperature: null,
+    systolic: null,
+    diastolic: null,
+  })
+  const [lastValidVitals, setLastValidVitals] = useState({
     heart_rate: null,
     spo2: null,
     temperature: null,
@@ -35,6 +73,12 @@ const PatientDashboard = ({ patientId, onLogout }) => {
   const [lastUpdated, setLastUpdated] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+
+  // --- Fix: Use useRef for ws and reconnectTimeout ---
+  const ws = useRef(null)
+  const reconnectTimeout = useRef(null)
+
+  const { t, i18n } = useTranslation()
 
   // Generate health tips based on current vital signs
   const generateHealthTips = () => {
@@ -125,31 +169,40 @@ const PatientDashboard = ({ patientId, onLogout }) => {
   }
 
   useEffect(() => {
-
     const fetchVitals = async () => {
       try {
         setIsRefreshing(true)
         const response = await fetch(`${API_BASE_URL}/api/data`)
-        if (!response.ok) throw new Error("Failed to fetch vital signs")
+        console.log(`${API_BASE_URL}/api/data`)
+        if (!response.ok) throw new Error("Failed to fetch vital signs. Please check your connection or try again later.")
         const data = await response.json()
 
         if (Array.isArray(data) && data.length > 0) {
           const latestReading = data[0]
-          setVitals({
+          const newVitals = {
             heart_rate: latestReading.heart_rate ?? null,
             spo2: latestReading.spo2 ?? null,
             temperature: latestReading.temperature ?? null,
             systolic: latestReading.blood_pressure ?? null,
             diastolic: null,
-          })
+          }
+          setVitals(newVitals)
           setLastUpdated(new Date(latestReading.timestamp || new Date()))
+          // Update last valid vitals only if the new value is valid
+          setLastValidVitals(prev => ({
+            heart_rate: (newVitals.heart_rate && newVitals.heart_rate > 0) ? newVitals.heart_rate : prev.heart_rate,
+            spo2: (newVitals.spo2 && newVitals.spo2 > 0) ? newVitals.spo2 : prev.spo2,
+            temperature: (newVitals.temperature && newVitals.temperature > 20 && newVitals.temperature !== -127) ? newVitals.temperature : prev.temperature,
+            systolic: (newVitals.systolic && newVitals.systolic > 60 && newVitals.systolic < 180) ? newVitals.systolic : prev.systolic,
+            diastolic: prev.diastolic, // No diastolic data
+          }))
         } else {
-          throw new Error("Invalid data format")
+          throw new Error("Invalid data format from server.")
         }
         setError(null)
       } catch (err) {
         console.error("Fetch vitals error:", err.message)
-        setError("Failed to fetch vital signs")
+        setError(err.message || "Failed to fetch vital signs")
       } finally {
         setLoading(false)
         setIsRefreshing(false)
@@ -162,12 +215,30 @@ const PatientDashboard = ({ patientId, onLogout }) => {
 
     return () => {
       clearInterval(pollInterval)
-      if (ws && ws.readyState !== WebSocket.CLOSED) {
-        ws.close()
+      // --- Fix: Use ws.current and reconnectTimeout.current ---
+      if (ws.current && ws.current.readyState !== WebSocket.CLOSED) {
+        ws.current.close()
       }
-      clearTimeout(reconnectTimeout)
+      if (reconnectTimeout.current) {
+        clearTimeout(reconnectTimeout.current)
+      }
     }
   }, [retryCount])
+
+  useEffect(() => {
+    // Load lastValidVitals from localStorage on mount
+    const stored = localStorage.getItem('lastValidVitals')
+    if (stored) {
+      try {
+        setLastValidVitals(JSON.parse(stored))
+      } catch {}
+    }
+  }, [])
+
+  useEffect(() => {
+    // Save lastValidVitals to localStorage whenever it changes
+    localStorage.setItem('lastValidVitals', JSON.stringify(lastValidVitals))
+  }, [lastValidVitals])
 
   const getVitalStatus = (type, value) => {
     if (value === null || value === 0 || value === -127) return "critical"
@@ -199,6 +270,17 @@ const PatientDashboard = ({ patientId, onLogout }) => {
       </div>
     )
 
+  if (error)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="bg-white p-6 rounded shadow text-center">
+          <h2 className="text-lg font-bold text-red-600 mb-2">Error</h2>
+          <p className="text-gray-700 mb-4">{error}</p>
+          <button className="bg-pink-500 text-white px-4 py-2 rounded" onClick={() => { setError(null); setLoading(true); setRetryCount((c) => c + 1) }}>Retry</button>
+        </div>
+      </div>
+    )
+
   const healthTips = generateHealthTips()
 
   return (
@@ -211,25 +293,35 @@ const PatientDashboard = ({ patientId, onLogout }) => {
                 <Baby className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-base font-semibold text-gray-800">Health Monitor</h1>
-                <p className="text-xs text-gray-600 hidden sm:block">Welcome back, {patientId.split("_")[1]}</p>
+                <h1 className="text-base font-semibold text-gray-800">{t('dashboard_health_monitor')}</h1>
+                <p className="text-xs text-gray-600 hidden sm:block">{t('dashboard_welcome', { name: patientId.split("_")[1] })}</p>
               </div>
             </div>
 
+            {/* Language Switcher */}
+            <button
+              onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'am' : 'en')}
+              className="flex items-center space-x-1 px-2 py-1 rounded bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold shadow ml-2"
+              title={t('navbar_language')}
+            >
+              <Globe className="w-4 h-4" />
+              <span>{i18n.language === 'en' ? t('navbar_amharic') : t('navbar_english')}</span>
+            </button>
+
             {/* Desktop Navigation */}
             <div className="hidden sm:flex items-center space-x-2">
-              <button
-                onClick={() => navigate("/chat")}
+              <Link
+                to="/chat"
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 p-2 rounded-lg transition-all shadow-sm"
               >
                 <MessageCircle className="w-4 h-4 text-white" />
-              </button>
-              <button
-                onClick={() => navigate("/notifications")}
+              </Link>
+              <Link
+                to="/notifications"
                 className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 p-2 rounded-lg transition-all shadow-sm"
               >
                 <Bell className="w-4 h-4 text-white" />
-              </button>
+              </Link>
               <div className="flex items-center bg-white/80 rounded-lg px-2 py-1 shadow-sm">
                 <div
                   className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
@@ -259,26 +351,22 @@ const PatientDashboard = ({ patientId, onLogout }) => {
           {showMobileMenu && (
             <div className="sm:hidden mt-3 pt-3 border-t border-gray-200">
               <div className="flex flex-col space-y-2">
-                <button
-                  onClick={() => {
-                    navigate("/chat")
-                    setShowMobileMenu(false)
-                  }}
+                <Link
+                  to="/chat"
+                  onClick={() => setShowMobileMenu(false)}
                   className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <MessageCircle className="w-4 h-4 text-blue-600" />
                   <span className="text-sm text-gray-700">AI Assistant</span>
-                </button>
-                <button
-                  onClick={() => {
-                    navigate("/notifications")
-                    setShowMobileMenu(false)
-                  }}
+                </Link>
+                <Link
+                  to="/notifications"
+                  onClick={() => setShowMobileMenu(false)}
                   className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <Bell className="w-4 h-4 text-orange-600" />
                   <span className="text-sm text-gray-700">Notifications</span>
-                </button>
+                </Link>
                 <button
                   onClick={onLogout}
                   className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
@@ -305,8 +393,8 @@ const PatientDashboard = ({ patientId, onLogout }) => {
         <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 rounded-lg p-4 text-white shadow-lg">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
             <div className="flex-1">
-              <h2 className="text-lg font-semibold mb-1">Pregnancy Journey</h2>
-              <p className="text-pink-100 text-sm mb-3">Week 32 of 40 • You're doing great!</p>
+              <h2 className="text-lg font-semibold mb-1">{t('preg')}</h2>
+              <p className="text-pink-100 text-sm mb-3">{t('week')} 32 {t('of')} 40 • {t('great')}</p>
               <div className="bg-white/20 rounded-full h-2 mb-1">
                 <div className="bg-white rounded-full h-2 transition-all duration-500" style={{ width: "80%" }}></div>
               </div>
@@ -314,7 +402,7 @@ const PatientDashboard = ({ patientId, onLogout }) => {
             </div>
             <div className="text-center bg-white/20 rounded-lg p-3 backdrop-blur-sm">
               <div className="text-2xl font-bold">56</div>
-              <div className="text-xs opacity-90">Days to go</div>
+              <div className="text-xs opacity-90">{t('days')}</div>
             </div>
           </div>
         </div>
@@ -323,34 +411,34 @@ const PatientDashboard = ({ patientId, onLogout }) => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <VitalCard
             icon={Heart}
-            title="Heart Rate"
-            value={vitals.heart_rate ? Math.round(vitals.heart_rate) : "N/A"}
+            title={t('heart')}
+            value={lastValidVitals.heart_rate !== null ? Math.round(lastValidVitals.heart_rate) : "N/A"}
             unit="BPM"
-            status={getVitalStatus("heart_rate", vitals.heart_rate)}
+            status={getVitalStatus("heart_rate", lastValidVitals.heart_rate)}
             color="bg-gradient-to-r from-red-500 to-pink-500"
           />
           <VitalCard
             icon={Activity}
-            title="Oxygen"
-            value={vitals.spo2 ? vitals.spo2.toFixed(1) : "N/A"}
+            title={t('oxygen')}
+            value={lastValidVitals.spo2 !== null ? lastValidVitals.spo2.toFixed(1) : "N/A"}
             unit="%"
-            status={getVitalStatus("spo2", vitals.spo2)}
+            status={getVitalStatus("spo2", lastValidVitals.spo2)}
             color="bg-gradient-to-r from-blue-500 to-cyan-500"
           />
           <VitalCard
             icon={Thermometer}
-            title="Temperature"
-            value={vitals.temperature ? vitals.temperature.toFixed(1) : "N/A"}
+            title={t('temp')}
+            value={lastValidVitals.temperature !== null ? lastValidVitals.temperature.toFixed(1) : "N/A"}
             unit="°C"
-            status={getVitalStatus("temperature", vitals.temperature)}
+            status={getVitalStatus("temperature", lastValidVitals.temperature)}
             color="bg-gradient-to-r from-orange-500 to-red-500"
           />
           <VitalCard
             icon={Activity}
-            title="Blood Pressure"
-            value={vitals.systolic ? `${vitals.systolic.toFixed(0)}/--` : "N/A"}
+            title={t('bp')}
+            value={lastValidVitals.systolic !== null ? `${lastValidVitals.systolic.toFixed(0)}/--` : "N/A"}
             unit="mmHg"
-            status={getVitalStatus("blood_pressure", vitals.systolic)}
+            status={getVitalStatus("blood_pressure", lastValidVitals.systolic)}
             color="bg-gradient-to-r from-green-500 to-emerald-500"
           />
         </div>
@@ -363,9 +451,9 @@ const PatientDashboard = ({ patientId, onLogout }) => {
                 <Clock className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-800">Data Status</h3>
+                <h3 className="text-sm font-semibold text-gray-800">{t('data')}</h3>
                 <p className="text-xs text-gray-600">
-                  {lastUpdated ? `Last updated: ${lastUpdated.toLocaleTimeString()}` : "No recent data"}
+                  {lastUpdated ? `${t('last')}: ${lastUpdated.toLocaleTimeString()}` : t('no')}
                 </p>
               </div>
             </div>
@@ -373,7 +461,7 @@ const PatientDashboard = ({ patientId, onLogout }) => {
               <div className="text-lg font-bold text-gray-800">
                 {lastUpdated ? lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "N/A"}
               </div>
-              <div className="text-xs text-gray-500">Last Reading</div>
+              <div className="text-xs text-gray-500">{t('reading')}</div>
             </div>
           </div>
         </div>
@@ -382,23 +470,23 @@ const PatientDashboard = ({ patientId, onLogout }) => {
         <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 shadow-sm border border-white/20">
           <div className="flex items-center mb-3">
             <Phone className="w-4 h-4 text-red-600 mr-2" />
-            <h3 className="text-sm font-semibold text-gray-800">Emergency Contacts</h3>
+            <h3 className="text-sm font-semibold text-gray-800">{t('emergency')}</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 px-4 rounded-lg text-sm font-medium transition-all shadow-sm flex items-center justify-center space-x-2">
               <Phone className="w-4 h-4" />
-              <span>Call Doctor</span>
+              <span>{t('call')}</span>
             </button>
             <button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-3 px-4 rounded-lg text-sm font-medium transition-all shadow-sm flex items-center justify-center space-x-2">
               <Users className="w-4 h-4" />
-              <span>Contact Family</span>
+              <span>{t('contact')}</span>
             </button>
           </div>
         </div>
 
         {/* Dynamic Health Tips */}
         <div className="space-y-3">
-          <h3 className="text-base font-semibold text-gray-800">Health Insights</h3>
+          <h3 className="text-base font-semibold text-gray-800">{t('health')}</h3>
           {healthTips.map((tip, index) => {
             const IconComponent = tip.icon
             return (
@@ -424,4 +512,10 @@ const PatientDashboard = ({ patientId, onLogout }) => {
   )
 }
 
-export default PatientDashboard
+const WrappedPatientDashboard = (props) => (
+  <ErrorBoundary>
+    <PatientDashboard {...props} />
+  </ErrorBoundary>
+)
+
+export default WrappedPatientDashboard

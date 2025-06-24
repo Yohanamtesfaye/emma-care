@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React from 'react'
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   ArrowLeft,
@@ -21,11 +22,41 @@ import {
   TrendingUp,
   Menu,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
-const API_BASE_URL = "https://hulumoya.zapto.org/emmacare"
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
+// ErrorBoundary for Notifications
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-red-50">
+          <div className="bg-white p-6 rounded shadow text-center">
+            <h2 className="text-lg font-bold text-red-600 mb-2">Something went wrong.</h2>
+            <p className="text-gray-700 mb-4">{this.state.error?.message || "An unexpected error occurred."}</p>
+            <button className="bg-pink-500 text-white px-4 py-2 rounded" onClick={() => window.location.reload()}>Reload</button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const Notifications = ({ user, userRole, onLogout }) => {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
   const [notifications, setNotifications] = useState([])
   const [filter, setFilter] = useState("all") // all, critical, warning, info
   const [showCallModal, setShowCallModal] = useState(false)
@@ -38,8 +69,17 @@ const Notifications = ({ user, userRole, onLogout }) => {
     systolic: null,
     diastolic: null,
   })
+  const [lastValidVitals, setLastValidVitals] = useState({
+    heart_rate: null,
+    spo2: null,
+    temperature: null,
+    systolic: null,
+    diastolic: null,
+  })
   const [lastVitalCheck, setLastVitalCheck] = useState(null)
-  const [wsStatus, setWsStatus] = useState("Connecting...")
+  const [wsStatus, setWsStatus] = useState(t("con"))
+  const ws = useRef(null)
+  const reconnectTimeout = useRef(null)
 
   // Check vital signs and generate notifications
   const checkVitalSigns = (vitalsData) => {
@@ -204,9 +244,21 @@ const Notifications = ({ user, userRole, onLogout }) => {
           diastolic: null,
         }
         setVitals(vitalsData)
-
-        // Check for notifications based on vital signs
-        checkVitalSigns(vitalsData)
+        setLastValidVitals(prev => ({
+          heart_rate: (vitalsData.heart_rate && vitalsData.heart_rate > 0) ? vitalsData.heart_rate : prev.heart_rate,
+          spo2: (vitalsData.spo2 && vitalsData.spo2 > 0) ? vitalsData.spo2 : prev.spo2,
+          temperature: (vitalsData.temperature && vitalsData.temperature > 20 && vitalsData.temperature !== -127) ? vitalsData.temperature : prev.temperature,
+          systolic: (vitalsData.systolic && vitalsData.systolic > 60 && vitalsData.systolic < 180) ? vitalsData.systolic : prev.systolic,
+          diastolic: prev.diastolic,
+        }))
+        // Check for notifications based on last valid vitals
+        checkVitalSigns({
+          heart_rate: (vitalsData.heart_rate && vitalsData.heart_rate > 0) ? vitalsData.heart_rate : lastValidVitals.heart_rate,
+          spo2: (vitalsData.spo2 && vitalsData.spo2 > 0) ? vitalsData.spo2 : lastValidVitals.spo2,
+          temperature: (vitalsData.temperature && vitalsData.temperature > 20 && vitalsData.temperature !== -127) ? vitalsData.temperature : lastValidVitals.temperature,
+          systolic: (vitalsData.systolic && vitalsData.systolic > 60 && vitalsData.systolic < 180) ? vitalsData.systolic : lastValidVitals.systolic,
+          diastolic: lastValidVitals.diastolic,
+        })
       }
     } catch (err) {
       console.error("Fetch vitals error:", err.message)
@@ -217,16 +269,15 @@ const Notifications = ({ user, userRole, onLogout }) => {
   useEffect(() => {
     // Initial fetch and WebSocket connection
     fetchVitals()
-
-    // Poll for updates every 30 seconds as backup
     const pollInterval = setInterval(fetchVitals, 30000)
-
     return () => {
       clearInterval(pollInterval)
-      if (ws && ws.readyState !== WebSocket.CLOSED) {
-        ws.close()
+      if (ws.current && ws.current.readyState !== WebSocket.CLOSED) {
+        ws.current.close()
       }
-      clearTimeout(reconnectTimeout)
+      if (reconnectTimeout.current) {
+        clearTimeout(reconnectTimeout.current)
+      }
     }
   }, [])
 
@@ -258,6 +309,21 @@ const Notifications = ({ user, userRole, onLogout }) => {
       setNotifications((prev) => [...doctorNotifications, ...prev])
     }
   }, [userRole])
+
+  useEffect(() => {
+    // Load lastValidVitals from localStorage on mount
+    const stored = localStorage.getItem('lastValidVitals')
+    if (stored) {
+      try {
+        setLastValidVitals(JSON.parse(stored))
+      } catch {}
+    }
+  }, [])
+
+  useEffect(() => {
+    // Save lastValidVitals to localStorage whenever it changes
+    localStorage.setItem('lastValidVitals', JSON.stringify(lastValidVitals))
+  }, [lastValidVitals])
 
   const getNotificationColor = (type) => {
     switch (type) {
@@ -381,7 +447,7 @@ const Notifications = ({ user, userRole, onLogout }) => {
                 <Bell className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-base font-semibold text-gray-800">Notifications Center</h1>
+                <h1 className="text-base font-semibold text-gray-800">{t("notifications")}</h1>
                 <p className="text-xs text-gray-600 hidden sm:block">
                   {unreadCount} unread • {criticalCount} critical alerts
                 </p>
@@ -418,7 +484,7 @@ const Notifications = ({ user, userRole, onLogout }) => {
                 onClick={onLogout}
                 className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors text-xs font-medium"
               >
-                Exit
+                {t("dashboard_exit")}
               </button>
             </div>
 
@@ -459,7 +525,7 @@ const Notifications = ({ user, userRole, onLogout }) => {
                   onClick={onLogout}
                   className="flex items-center space-x-2 w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
                 >
-                  <span className="text-sm text-gray-700">Exit</span>
+                  <span className="text-sm text-gray-700">{t("dashboard_exit")}</span>
                 </button>
               </div>
             </div>
@@ -473,39 +539,31 @@ const Notifications = ({ user, userRole, onLogout }) => {
           <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-white/20 p-4">
             <div className="flex items-center mb-3">
               <TrendingUp className="w-4 h-4 text-blue-600 mr-2" />
-              <h3 className="text-sm font-semibold text-gray-800">Current Vitals Status</h3>
+              <h3 className="text-sm font-semibold text-gray-800">{t("current")}</h3>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="text-center bg-white/60 rounded-lg p-3">
-                <div className="text-xs font-medium text-gray-700 mb-1">Heart Rate</div>
-                <div
-                  className={`text-lg font-bold ${vitals.heart_rate > 100 ? "text-red-600" : vitals.heart_rate > 90 ? "text-yellow-600" : "text-green-600"}`}
-                >
-                  {vitals.heart_rate ? Math.round(vitals.heart_rate) : "N/A"} BPM
+                <div className="text-xs font-medium text-gray-700 mb-1">{t("heart")}</div>
+                <div className={`text-lg font-bold ${lastValidVitals.heart_rate > 100 ? "text-red-600" : lastValidVitals.heart_rate > 90 ? "text-yellow-600" : "text-green-600"}`}>
+                  {lastValidVitals.heart_rate !== null ? Math.round(lastValidVitals.heart_rate) : "N/A"} BPM
                 </div>
               </div>
               <div className="text-center bg-white/60 rounded-lg p-3">
-                <div className="text-xs font-medium text-gray-700 mb-1">Oxygen</div>
-                <div
-                  className={`text-lg font-bold ${vitals.spo2 < 95 ? "text-red-600" : vitals.spo2 < 97 ? "text-yellow-600" : "text-green-600"}`}
-                >
-                  {vitals.spo2 ? vitals.spo2.toFixed(1) : "N/A"}%
+                <div className="text-xs font-medium text-gray-700 mb-1">{t("oxygen")}</div>
+                <div className={`text-lg font-bold ${lastValidVitals.spo2 !== null && lastValidVitals.spo2 < 95 ? "text-red-600" : lastValidVitals.spo2 !== null && lastValidVitals.spo2 < 97 ? "text-yellow-600" : "text-green-600"}`}>
+                  {lastValidVitals.spo2 !== null ? lastValidVitals.spo2.toFixed(1) : "N/A"}%
                 </div>
               </div>
               <div className="text-center bg-white/60 rounded-lg p-3">
-                <div className="text-xs font-medium text-gray-700 mb-1">Temperature</div>
-                <div
-                  className={`text-lg font-bold ${vitals.temperature > 37.5 ? "text-red-600" : vitals.temperature > 37 ? "text-yellow-600" : "text-green-600"}`}
-                >
-                  {vitals.temperature ? vitals.temperature.toFixed(1) : "N/A"}°C
+                <div className="text-xs font-medium text-gray-700 mb-1">{t("temp")}</div>
+                <div className={`text-lg font-bold ${lastValidVitals.temperature !== null && lastValidVitals.temperature > 37.5 ? "text-red-600" : lastValidVitals.temperature !== null && lastValidVitals.temperature > 37 ? "text-yellow-600" : "text-green-600"}`}>
+                  {lastValidVitals.temperature !== null ? lastValidVitals.temperature.toFixed(1) : "N/A"}°C
                 </div>
               </div>
               <div className="text-center bg-white/60 rounded-lg p-3">
-                <div className="text-xs font-medium text-gray-700 mb-1">Blood Pressure</div>
-                <div
-                  className={`text-lg font-bold ${vitals.systolic > 140 ? "text-red-600" : vitals.systolic > 120 ? "text-yellow-600" : "text-green-600"}`}
-                >
-                  {vitals.systolic ? vitals.systolic.toFixed(0) : "N/A"} mmHg
+                <div className="text-xs font-medium text-gray-700 mb-1">{t("bp")}</div>
+                <div className={`text-lg font-bold ${lastValidVitals.systolic !== null && lastValidVitals.systolic > 140 ? "text-red-600" : lastValidVitals.systolic !== null && lastValidVitals.systolic > 120 ? "text-yellow-600" : "text-green-600"}`}>
+                  {lastValidVitals.systolic !== null ? lastValidVitals.systolic.toFixed(0) : "N/A"} mmHg
                 </div>
               </div>
             </div>
@@ -524,25 +582,25 @@ const Notifications = ({ user, userRole, onLogout }) => {
             {[
               {
                 key: "all",
-                label: "All",
+                label: t("all"),
                 count: notifications.length,
                 color: "bg-gray-100 text-gray-700 hover:bg-gray-200",
               },
               {
                 key: "critical",
-                label: "Critical",
+                label: t("critical"),
                 count: notifications.filter((n) => n.type === "critical").length,
                 color: "bg-red-100 text-red-700 hover:bg-red-200",
               },
               {
                 key: "warning",
-                label: "Warning",
+                label: t("warn"),
                 count: notifications.filter((n) => n.type === "warning").length,
                 color: "bg-yellow-100 text-yellow-700 hover:bg-yellow-200",
               },
               {
                 key: "info",
-                label: "Info",
+                label: t("info"),
                 count: notifications.filter((n) => n.type === "info").length,
                 color: "bg-blue-100 text-blue-700 hover:bg-blue-200",
               },
@@ -567,7 +625,7 @@ const Notifications = ({ user, userRole, onLogout }) => {
               <div className="bg-gray-100 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <Bell className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-base font-semibold text-gray-800 mb-2">No notifications</h3>
+              <h3 className="text-base font-semibold text-gray-800 mb-2">{t("no")}</h3>
               <p className="text-sm text-gray-600 max-w-md mx-auto">
                 You're all caught up! No {filter !== "all" ? filter : ""} notifications to show at the moment.
               </p>
@@ -721,4 +779,10 @@ const Notifications = ({ user, userRole, onLogout }) => {
   )
 }
 
-export default Notifications
+const WrappedNotifications = (props) => (
+  <ErrorBoundary>
+    <Notifications {...props} />
+  </ErrorBoundary>
+)
+
+export default WrappedNotifications
