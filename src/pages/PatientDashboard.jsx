@@ -83,7 +83,7 @@ const PatientDashboard = ({ patientId, onLogout }) => {
   // Generate health tips based on current vital signs
   const generateHealthTips = () => {
     const tips = []
-
+  
     // Temperature-based tips
     if (vitals.temperature !== null && vitals.temperature !== -127) {
       if (vitals.temperature > 38.0) {
@@ -104,9 +104,18 @@ const PatientDashboard = ({ patientId, onLogout }) => {
           title: "Elevated Temperature",
           message: `Temperature reading of ${(vitals.temperature + 5).toFixed(1)}°C detected. Monitor closely.`,
         })
+      } else {
+        tips.push({
+          icon: Sun,
+          color: "text-green-600",
+          bgColor: "bg-green-50",
+          borderColor: "border-green-200",
+          title: "Normal Temperature",
+          message: "Your temperature is within a healthy range. Keep staying active and hydrated!",
+        })
       }
     }
-
+  
     // Heart rate-based tips
     if (vitals.heart_rate !== null && vitals.heart_rate > 0) {
       if (vitals.heart_rate > 120) {
@@ -127,9 +136,18 @@ const PatientDashboard = ({ patientId, onLogout }) => {
           title: "Elevated Heart Rate",
           message: `Heart rate reading of ${Math.round(vitals.heart_rate)} BPM. Practice relaxation techniques.`,
         })
+      } else {
+        tips.push({
+          icon: Heart,
+          color: "text-green-600",
+          bgColor: "bg-green-50",
+          borderColor: "border-green-200",
+          title: "Healthy Heart Rate",
+          message: "Your heart rate is within a normal range. Keep up the good work!",
+        })
       }
     }
-
+  
     // Oxygen saturation-based tips
     if (vitals.spo2 !== null && vitals.spo2 > 0) {
       if (vitals.spo2 < 90) {
@@ -150,9 +168,50 @@ const PatientDashboard = ({ patientId, onLogout }) => {
           title: "Low Oxygen Level",
           message: `Oxygen reading of ${vitals.spo2.toFixed(1)}% detected. Practice deep breathing.`,
         })
+      } else {
+        tips.push({
+          icon: Activity,
+          color: "text-green-600",
+          bgColor: "bg-green-50",
+          borderColor: "border-green-200",
+          title: "Healthy Oxygen Level",
+          message: "Your oxygen saturation is optimal. Keep breathing deeply and staying active!",
+        })
       }
     }
-
+  
+    // Blood pressure-based tips
+    if (vitals.systolic !== null && vitals.systolic > 0) {
+      if (vitals.systolic > 140) {
+        tips.push({
+          icon: AlertTriangle,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+          borderColor: "border-red-200",
+          title: "High Blood Pressure Alert",
+          message: `Your systolic blood pressure is ${vitals.systolic.toFixed(0)} mmHg. Reduce salt intake and consult your doctor.`,
+        })
+      } else if (vitals.systolic < 90) {
+        tips.push({
+          icon: AlertTriangle,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+          borderColor: "border-red-200",
+          title: "Low Blood Pressure Alert",
+          message: `Your systolic blood pressure is ${vitals.systolic.toFixed(0)} mmHg. Stay hydrated and eat balanced meals.`,
+        })
+      } else {
+        tips.push({
+          icon: Activity,
+          color: "text-green-600",
+          bgColor: "bg-green-50",
+          borderColor: "border-green-200",
+          title: "Healthy Blood Pressure",
+          message: "Your blood pressure is within a normal range. Keep maintaining a healthy lifestyle!",
+        })
+      }
+    }
+  
     // Default wellness tip if no alerts
     if (tips.length === 0) {
       tips.push({
@@ -164,10 +223,10 @@ const PatientDashboard = ({ patientId, onLogout }) => {
         message: "Your vital signs are within normal range. Keep up the great work!",
       })
     }
-
-    return tips.slice(0, 2) // Show max 2 tips
+  
+    return tips.slice(0, 5) // Show max 5 tips
   }
-
+  
   useEffect(() => {
     const fetchVitals = async () => {
       try {
