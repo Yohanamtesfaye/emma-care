@@ -52,25 +52,25 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [patients, setPatients] = useState([
     {
-      id: "patient123",
-      name: "Priya Sharma",
+      id: "patient1",
+      name: "Patient",
       age: 28,
       weeks: 32,
       status: "normal",
       phone: "+91 9876543210",
-      email: "priya@email.com",
+      email: "patient@email.com",
       conceivedDate: "2024-05-15",
       deliveryDate: "2025-02-19",
       address: "Mumbai, Maharashtra",
     },
     {
-      id: "patient456",
-      name: "Anita Patel",
+      id: "patient2",
+      name: "Patient 2",
       age: 25,
       weeks: 28,
       status: "normal",
-      phone: "+91 9876543211",
-      email: "anita@email.com",
+      phone: "+91 9876543222",
+      email: "patient2@email.com",
       conceivedDate: "2024-06-01",
       deliveryDate: "2025-03-08",
       address: "Delhi, NCR",
@@ -462,33 +462,33 @@ const DoctorDashboard = ({ doctorId, onLogout }) => {
             <VitalCard
               icon={Heart}
               title="Heart Rate"
-              value={lastValidVitals.heart_rate ? Math.round(lastValidVitals.heart_rate) : "N/A"}
+              value={selectedPatient === 'patient1' ? (lastValidVitals.heart_rate ? Math.round(lastValidVitals.heart_rate) : "N/A") : 88}
               unit="BPM"
-              status={getVitalStatus("heart_rate", lastValidVitals.heart_rate)}
+              status={getVitalStatus("heart_rate", selectedPatient === 'patient1' ? lastValidVitals.heart_rate : 88)}
               color="bg-gradient-to-r from-red-500 to-pink-500"
             />
             <VitalCard
               icon={Activity}
               title="Oxygen"
-              value={lastValidVitals.spo2 ? lastValidVitals.spo2.toFixed(1) : "N/A"}
+              value={selectedPatient === 'patient1' ? (lastValidVitals.spo2 ? lastValidVitals.spo2.toFixed(1) : "N/A") : 97.2}
               unit="%"
-              status={getVitalStatus("spo2", lastValidVitals.spo2)}
+              status={getVitalStatus("spo2", selectedPatient === 'patient1' ? lastValidVitals.spo2 : 97.2)}
               color="bg-gradient-to-r from-blue-500 to-cyan-500"
             />
             <VitalCard
               icon={Thermometer}
               title="Temperature"
-              value={lastValidVitals.temperature ? lastValidVitals.temperature.toFixed(1) : "N/A"}
+              value={selectedPatient === 'patient1' ? (lastValidVitals.temperature ? lastValidVitals.temperature.toFixed(1) : "N/A") : 36.8}
               unit="°C"
-              status={getVitalStatus("temperature", lastValidVitals.temperature)}
+              status={getVitalStatus("temperature", selectedPatient === 'patient1' ? lastValidVitals.temperature : 36.8)}
               color="bg-gradient-to-r from-orange-500 to-red-500"
             />
             <VitalCard
               icon={Activity}
               title="Blood Pressure"
-              value={lastValidVitals.systolic ? `${lastValidVitals.systolic.toFixed(0)}/${lastValidVitals.diastolic ? lastValidVitals.diastolic.toFixed(0) : "--"}` : "N/A"}
+              value={selectedPatient === 'patient1' ? (lastValidVitals.systolic ? `${lastValidVitals.systolic.toFixed(0)}/${lastValidVitals.diastolic ? lastValidVitals.diastolic.toFixed(0) : "--"}` : "N/A") : "120/80"}
               unit="mmHg"
-              status={getVitalStatus("blood_pressure", lastValidVitals.systolic)}
+              status={getVitalStatus("blood_pressure", selectedPatient === 'patient1' ? lastValidVitals.systolic : 120)}
               color="bg-gradient-to-r from-green-500 to-emerald-500"
             />
           </div>
