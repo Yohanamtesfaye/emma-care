@@ -93,7 +93,7 @@ const PatientDashboard = ({ patientId, onLogout }) => {
           bgColor: "bg-red-50",
           borderColor: "border-red-200",
           title: "High Temperature Alert",
-          message: `Your temperature is ${vitals.temperature.toFixed(1)}°C. Rest, stay hydrated, and contact your doctor.`,
+          message: `Your temperature is ${(vitals.temperature + 5).toFixed(1)}°C. Rest, stay hydrated, and contact your doctor.`,
         })
       } else if (vitals.temperature > 37.5) {
         tips.push({
@@ -102,7 +102,7 @@ const PatientDashboard = ({ patientId, onLogout }) => {
           bgColor: "bg-orange-50",
           borderColor: "border-orange-200",
           title: "Elevated Temperature",
-          message: `Temperature reading of ${vitals.temperature.toFixed(1)}°C detected. Monitor closely.`,
+          message: `Temperature reading of ${(vitals.temperature + 5).toFixed(1)}°C detected. Monitor closely.`,
         })
       }
     }
@@ -428,7 +428,7 @@ const PatientDashboard = ({ patientId, onLogout }) => {
           <VitalCard
             icon={Thermometer}
             title={t('temp')}
-            value={lastValidVitals.temperature !== null ? lastValidVitals.temperature.toFixed(1) : "N/A"}
+            value={lastValidVitals.temperature !== null ? (lastValidVitals.temperature + 5).toFixed(1) : "N/A"}
             unit="°C"
             status={getVitalStatus("temperature", lastValidVitals.temperature)}
             color="bg-gradient-to-r from-orange-500 to-red-500"
